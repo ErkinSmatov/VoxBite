@@ -141,13 +141,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (заполняется roadmapper) | | Pending |
+| ONBOARD-01 | Phase 2 | Pending |
+| ONBOARD-02 | Phase 2 | Pending |
+| ONBOARD-03 | Phase 1 | Pending |
+| ONBOARD-04 | Phase 1 | Pending |
+| ONBOARD-05 | Phase 2 | Pending |
+| ONBOARD-06 | Phase 2 | Pending |
+| VOICE-01 | Phase 3 | Pending |
+| VOICE-02 | Phase 3 | Pending |
+| VOICE-03 | Phase 3 | Pending |
+| VOICE-04 | Phase 3 | Pending |
+| DECOMP-01 | Phase 3 | Pending |
+| DECOMP-02 | Phase 3 | Pending |
+| DECOMP-03 | Phase 3 | Pending |
+| MATCH-01 | Phase 1 | Pending |
+| MATCH-02 | Phase 1 | Pending |
+| CORRECT-01 | Phase 4 | Pending |
+| CORRECT-02 | Phase 4 | Pending |
+| CORRECT-03 | Phase 4 | Pending |
+| CORRECT-04 | Phase 4 | Pending |
+| CORRECT-05 | Phase 4 | Pending |
+| CORRECT-06 | Phase 4 | Pending |
+| CORRECT-07 | Phase 4 | Pending |
+| CORRECT-08 | Phase 4 | Pending |
+| CALC-01 | Phase 4 | Pending |
+| CALC-02 | Phase 4 | Pending |
+| DIARY-01 | Phase 4 | Pending |
+| DIARY-02 | Phase 5 | Pending |
+| DIARY-03 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 28 total
-- Mapped to phases: 0 (заполнится после создания roadmap)
-- Unmapped: 28 ⚠️ (ожидается — roadmap ещё не создан)
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-08-10*
-*Last updated: 2026-08-10 after initial definition*
+*Last updated: 2026-08-10 after roadmap creation*
