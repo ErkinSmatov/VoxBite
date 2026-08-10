@@ -41,7 +41,17 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The offline FDC indexing pipeline populates `fdc_foods` from Foundation Foods + SR Legacy only (no Branded Foods), with a per-record embedding and per-100g nutrients including calories/protein/fat/carbs/sugar (nullable where FDC has no sugar value).
   3. Unit tests pass for the target-calorie/macro calculation (Mifflin-St Jeor BMR + activity-level TDEE + ≤1 kg/month rate cap + safety calorie floor + BЖУ preset split) across representative sample cases covering each sex and each goal (gain/loss/maintain).
   4. A manual or scripted query against the matching function returns 3 plausible FDC candidates for at least 10 hand-picked English ingredient names, with no candidate coming from Branded Foods.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Node/TypeScript scaffolding, Vitest, secret hygiene, env loader, check-setup script
+- [ ] 01-02-PLAN.md — Owner sets up Supabase (pgvector) + OpenAI (key, hard spend cap) and a working .env
+- [ ] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
+- [ ] 01-04-PLAN.md — Nutrition domain math: Mifflin-St Jeor, TDEE, rate cap, safety floor, target macros (TDD)
+- [ ] 01-05-PLAN.md — FDC download/unzip, food.csv parsers with the foundation_food filter, priority-ordered nutrient resolution
+- [ ] 01-06-PLAN.md — OpenAI embedding adapter, idempotent fdc_foods loader, npm run index-fdc pipeline
+- [ ] 01-07-PLAN.md — Run the indexing pipeline for real and verify the loaded index (verify-index)
+- [ ] 01-08-PLAN.md — matchIngredient port + Drizzle/pgvector repository + verify-matches over 10 ingredient names
 
 ### Phase 2: Bot skeleton + onboarding
 **Goal**: Users can complete onboarding through the real Telegram bot and see their calculated КБЖУ targets, validating the webhook/bot-framework plumbing before the AI pipeline is layered on top.
@@ -96,7 +106,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation — data + domain math | 0/TBD | Not started | - |
+| 1. Foundation — data + domain math | 0/8 | Not started | - |
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 0/TBD | Not started | - |
