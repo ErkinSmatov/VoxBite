@@ -1,8 +1,8 @@
 ---
 phase: 1
 slug: foundation-data-domain-math
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-08-10
 ---
@@ -38,15 +38,17 @@ created: 2026-08-10
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-01-xx | 01 | 0 | — | — | Vitest configured and runnable | infra | `npx vitest --version && npx vitest run` (empty pass) | ❌ W0 | ⬜ pending |
-| 01-0x-xx | TBD | TBD | ONBOARD-03 | — | BMR + TDEE + rate cap + safety floor correct across sex × goal | unit | `npx vitest run domain/nutrition/bmr-tdee.test.ts domain/nutrition/target-calories.test.ts` | ❌ W0 | ⬜ pending |
-| 01-0x-xx | TBD | TBD | ONBOARD-04 | — | Target macro grams from calories + presets, incl. carbs-clamp edge case | unit | `npx vitest run domain/nutrition/target-macros.test.ts` | ❌ W0 | ⬜ pending |
-| 01-0x-xx | TBD | TBD | MATCH-01 | T-01-01 | `matchIngredient()` returns top-N candidates via repository port (fake repo) | unit | `npx vitest run domain/fdc-matching/match-ingredient.test.ts` | ❌ W0 | ⬜ pending |
-| 01-0x-xx | TBD | TBD | MATCH-01 | T-01-01 | Real pgvector query returns 3 plausible candidates for 10 hand-picked names | scripted integration | `npx tsx scripts/index-fdc/verify-matches.ts` | ❌ W0 | ⬜ pending |
-| 01-0x-xx | TBD | TBD | MATCH-02 | T-01-02 | Indexing pipeline filters to `data_type='foundation_food'` only, never writes Branded/non-foundation rows | unit + integration | `npx vitest run scripts/index-fdc/parse-foundation.test.ts` | ❌ W0 | ⬜ pending |
+| 01-01 | 01 | 1 | — | — | Vitest configured and runnable; secrets never committed | infra | `npx vitest --version && npx vitest run` | ❌ W0 | ⬜ pending |
+| 01-02 | 02 | 2 | ONBOARD-03, MATCH-01, MATCH-02 | — | Supabase + OpenAI reachable, spend capped | manual (owner) | `npm run check-setup` | ❌ W0 | ⬜ pending |
+| 01-03 | 03 | 3 | ONBOARD-03, MATCH-01, MATCH-02 | — | Schema + RLS + `[BLOCKING]` `drizzle-kit generate`+`migrate` against real Supabase DB | integration | `npx drizzle-kit generate && npx drizzle-kit migrate` + `verify-schema` | ❌ W0 | ⬜ pending |
+| 01-04 | 04 | 2 | ONBOARD-03, ONBOARD-04 | — | BMR + TDEE + rate cap + safety floor + fat-share floor correct across sex × goal | unit (TDD) | `npx vitest run domain/nutrition/bmr-tdee.test.ts domain/nutrition/target-calories.test.ts domain/nutrition/target-macros.test.ts` | ❌ W0 | ⬜ pending |
+| 01-05 | 05 | 2 | MATCH-02 | T-01-02 | `data_type='foundation_food'` filter + priority-ordered nutrient-ID resolution, null never coerced to 0 | unit | `npx vitest run scripts/index-fdc/parse-foundation.test.ts` | ❌ W0 | ⬜ pending |
+| 01-06 | 06 | 4 | MATCH-01, MATCH-02 | T-01-01, T-01-02 | Embedding adapter + idempotent loader + runtime tripwire (abort if kept Foundation rows > 5000) | unit + integration | `npx vitest run` (loader tests) | ❌ W0 | ⬜ pending |
+| 01-07 | 07 | 5 | MATCH-02 | T-01-02 | Full index run against real Supabase DB; `verify-index` integrity check | scripted integration | `npm run index-fdc` + `npx tsx scripts/index-fdc/verify-index.ts` | ❌ W0 | ⬜ pending |
+| 01-08 | 08 | 6 | MATCH-01, MATCH-02 | T-01-01 | `matchIngredient()` (fake-repo unit) + real pgvector cosine query + owner plausibility checkpoint | unit + scripted integration + manual (owner) | `npx vitest run domain/fdc-matching/match-ingredient.test.ts` + `npx tsx scripts/index-fdc/verify-matches.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-*Plan/Wave/Task IDs finalized once gsd-planner writes PLAN.md — this table is pre-populated from RESEARCH.md's requirement→test map and updated then.*
+*Updated 2026-08-11 after gsd-planner wrote all 8 PLAN.md files and gsd-plan-checker verified them (VERIFICATION PASSED, 0 blockers).*
 
 ---
 
@@ -71,11 +73,11 @@ created: 2026-08-10
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-08-11 (gsd-plan-checker: VERIFICATION PASSED, 0 blockers, 5 non-blocking documentation-hygiene warnings)

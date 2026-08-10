@@ -44,13 +44,24 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 8 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Node/TypeScript scaffolding, Vitest, secret hygiene, env loader, check-setup script
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Owner sets up Supabase (pgvector) + OpenAI (key, hard spend cap) and a working .env
-- [ ] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
 - [ ] 01-04-PLAN.md — Nutrition domain math: Mifflin-St Jeor, TDEE, rate cap, safety floor, target macros (TDD)
 - [ ] 01-05-PLAN.md — FDC download/unzip, food.csv parsers with the foundation_food filter, priority-ordered nutrient resolution
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-06-PLAN.md — OpenAI embedding adapter, idempotent fdc_foods loader, npm run index-fdc pipeline
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-07-PLAN.md — Run the indexing pipeline for real and verify the loaded index (verify-index)
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 01-08-PLAN.md — matchIngredient port + Drizzle/pgvector repository + verify-matches over 10 ingredient names
 
 ### Phase 2: Bot skeleton + onboarding
