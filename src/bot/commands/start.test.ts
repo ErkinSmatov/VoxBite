@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { UserRow } from '../../db/schema/users.js';
+import { DISCLAIMER_TEXT } from '../formatting/onboarding-copy.js';
 import { buildExistingTargetsMessage, createStartHandler, RESTART_ONBOARDING_CALLBACK } from './start.js';
 
 /**
@@ -73,6 +74,18 @@ describe('buildExistingTargetsMessage', () => {
     expect(message).toContain('65');
     expect(message).toContain('251');
   });
+
+  // WR-02 regression: the returning-user screen is the most-travelled path in
+  // the product and used to show calories and macros with no disclaimer at all.
+  it('contains the ONBOARD-06 disclaimer verbatim', () => {
+    const message = buildExistingTargetsMessage(baseRow as never);
+    expect(message).toContain(DISCLAIMER_TEXT);
+  });
+
+  it('places the disclaimer after the numbers', () => {
+    const message = buildExistingTargetsMessage(baseRow as never);
+    expect(message.indexOf(DISCLAIMER_TEXT)).toBeGreaterThan(message.indexOf('2379'));
+  });
 });
 
 describe('createStartHandler', () => {
@@ -107,6 +120,8 @@ describe('createStartHandler', () => {
     expect(entered).toHaveLength(0);
     expect(replies).toHaveLength(1);
     expect(replies[0]!.text).toContain('2379');
+    // WR-02: the message the returning user actually receives carries the disclaimer.
+    expect(replies[0]!.text).toContain(DISCLAIMER_TEXT);
     const opts = replies[0]!.opts as { reply_markup: { inline_keyboard: Array<Array<{ callback_data: string }>> } };
     expect(opts.reply_markup.inline_keyboard[0]![0]!.callback_data).toBe(RESTART_ONBOARDING_CALLBACK);
   });

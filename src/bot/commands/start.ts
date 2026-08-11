@@ -20,7 +20,7 @@ import type { Db } from '../../db/client.js';
 import { eq } from 'drizzle-orm';
 import { InlineKeyboard } from 'grammy';
 import type { BotContext } from '../bot.js';
-import { questionCopy } from '../formatting/onboarding-copy.js';
+import { DISCLAIMER_TEXT, questionCopy } from '../formatting/onboarding-copy.js';
 import { ONBOARDING_CONVERSATION_ID } from '../conversations/onboarding.js';
 
 /** A user is "fully onboarded" only when both onboardedAt and targetKcal are set. */
@@ -36,7 +36,17 @@ export function buildRestartKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text('Пройти анкету заново', RESTART_ONBOARDING_CALLBACK);
 }
 
-/** Pure — a Russian message summarizing the caller's stored targets. */
+/**
+ * Pure — a Russian message summarizing the caller's stored targets.
+ *
+ * WR-02: the ONBOARD-06 disclaimer is part of this string by construction,
+ * exactly as it is in `targetsWithDisclaimerMessage`. This is the screen a
+ * returning user sees on *every* `/start`, whereas the onboarding screen
+ * fires once — a calorie/macro number is never shown without the
+ * disclaimer attached. `DISCLAIMER_TEXT` is reused verbatim from
+ * onboarding-copy.ts (owner-approved wording, 2026-08-11); there is
+ * deliberately no second variant of it in this file.
+ */
 export function buildExistingTargetsMessage(user: OnboardedUserRow): string {
   return [
     'С возвращением! Вот твои текущие цели:',
@@ -44,6 +54,8 @@ export function buildExistingTargetsMessage(user: OnboardedUserRow): string {
     `Белки: ${user.targetProteinG} г, Жиры: ${user.targetFatG} г, Углеводы: ${user.targetCarbsG} г`,
     '',
     'Можешь пройти анкету заново, если что-то изменилось.',
+    '',
+    DISCLAIMER_TEXT,
   ].join('\n');
 }
 
