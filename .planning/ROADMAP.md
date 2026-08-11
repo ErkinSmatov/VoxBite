@@ -73,7 +73,16 @@ Plans:
   2. If the user selects a weight-gain/loss goal, the desired rate they can enter is capped at 1 kg/month by the input UI itself, not only by the underlying formula.
   3. After onboarding, the user sees their calculated target calories and macros and can either confirm them or restart onboarding to change inputs.
   4. The user sees a non-medical-device disclaimer during onboarding, before targets are confirmed.
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — grammY + conversations deps, npm run bot, env.ts TELEGRAM_BOT_TOKEN/BETA_ALLOWLIST, BotFather walkthrough
+- [ ] 02-02-PLAN.md — pure onboarding logic: field parsing, option lists, rate presets, profile assembly, Russian copy + disclaimer
+- [ ] 02-03-PLAN.md — bot_sessions schema, generated migration + RLS, blocking owner review before db:migrate
+- [ ] 02-04-PLAN.md — Postgres session storage adapter, fail-closed allowlist gate, /whoami, entrypoint with 409 handling
+- [ ] 02-05-PLAN.md — inline keyboards, idempotent users upsert, the seven-step onboarding conversation
+- [ ] 02-06-PLAN.md — /start with the already-onboarded branch, conversation registration, manual checklist document
+- [ ] 02-07-PLAN.md — owner sign-off on the disclaimer wording and the manual checklist walkthrough
 **UI hint**: yes
 
 ### Phase 3: Voice pipeline
