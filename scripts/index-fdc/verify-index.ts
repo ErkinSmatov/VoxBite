@@ -476,4 +476,20 @@ async function main(): Promise<void> {
   process.exit(allOk ? 0 : 1);
 }
 
-main();
+// Без этого .catch() любая ошибка базы (неверный пароль, база не отвечает,
+// таблицы ещё нет) вылетала бы как «unhandled promise rejection» — простынёй
+// технического стектрейса, мимо всех подсказок, написанных выше по-русски.
+main().catch((err) => {
+  console.error(
+    `\n[ОШИБКА] ${err instanceof Error ? err.message : String(err)}\n\n` +
+      'Проверить индекс fdc_foods не удалось — до самих проверок дело не дошло.\n' +
+      'Что проверить по порядку:\n' +
+      '1. Строка подключения: открой .env и сравни DATABASE_URL со строкой из\n' +
+      '   Supabase: Dashboard -> Connect -> Session pooler (порт 5432, не 6543).\n' +
+      '2. Таблицы созданы: npm run db:migrate, затем npm run verify-schema\n' +
+      '3. Данные загружены: npm run index-fdc\n' +
+      'Потом запусти ещё раз: npm run verify-index\n' +
+      'Содержимое .env никому не показывай — там пароль.',
+  );
+  process.exit(1);
+});

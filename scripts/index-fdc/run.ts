@@ -3,7 +3,8 @@
  *
  * Order of operations: parse -> resolve nutrients -> filter (isIndexable)
  * -> skip already-indexed (dataset+model version match) -> print cost
- * estimate -> embed -> upsert -> final coverage report.
+ * estimate -> (embed one batch -> upsert that batch) x N -> final coverage
+ * report.
  *
  * D-03 (owner runs this by hand, alone): every step prints what it
  * completed before the next one starts, and any error's closing message
@@ -12,7 +13,11 @@
  * rows whose dataset+model version already match (see load.ts).
  *
  * Never wraps the whole run in one transaction — partial progress
- * surviving a crash is the point, not a bug.
+ * surviving a crash is the point, not a bug. Именно поэтому эмбеддинги и
+ * запись идут ОДНИМ циклом по пачкам (см. build-embeddings.ts): пачка
+ * становится долговечной сразу после того, как за неё заплатили, а не
+ * в самом конце прогона. Иначе обещание «перезапусти, уже загруженное
+ * пропустится» было бы неправдой — до первой записи пропускать нечего.
  */
 import { sql } from 'drizzle-orm';
 import { createDb, closeDb } from '../../src/db/client.js';
@@ -27,7 +32,7 @@ import { parseFoundationFoods } from './parse-foundation.js';
 import { parseSrLegacyFoods } from './parse-sr-legacy.js';
 import { buildNutrientIndex, resolveFoodNutrients } from './resolve-nutrients.js';
 import { isIndexable, loadExistingVersions, upsertFdcFoods, type IndexableRecord } from './load.js';
-import { buildEmbeddings } from './build-embeddings.js';
+import { embedAndStore } from './build-embeddings.js';
 import type { NewFdcFood } from '../../src/db/schema/fdc-foods.js';
 
 /** MATCH-02 tripwire: a healthy Foundation Foods kept-count is ~469. If the
@@ -35,29 +40,85 @@ import type { NewFdcFood } from '../../src/db/schema/fdc-foods.js';
  * into the index — abort loudly instead of silently indexing them. */
 const FOUNDATION_KEPT_SANITY_LIMIT = 5000;
 
-interface RunOptions {
+/** The only accepted `--source=` values. Anything else is a typo and must
+ * stop the run: a silent fallback here would embed the WRONG dataset and
+ * spend real money doing it (7 793 строки SR Legacy вместо 469 Foundation). */
+export const VALID_SOURCES = ['foundation', 'sr-legacy', 'both'] as const;
+export type SourceOption = (typeof VALID_SOURCES)[number];
+
+/** Ошибка в самой команде (опечатка во флаге), а не сбой прогона. Отличается
+ * от обычной ошибки, чтобы не советовать «просто перезапусти» там, где надо
+ * сначала исправить команду. */
+export class UsageError extends Error {
+  readonly isUsageError = true;
+}
+
+export interface RunOptions {
   limit?: number;
-  source: 'foundation' | 'sr-legacy' | 'both';
+  source: SourceOption;
   force: boolean;
   dryRun: boolean;
 }
 
-function parseArgs(argv: string[]): RunOptions {
+/** Everything after the first `=` — так значение, внутри которого есть `=`,
+ * не обрежется молча, как это делал `split('=')[1]`. */
+function flagValue(arg: string): string {
+  const eq = arg.indexOf('=');
+  return eq === -1 ? '' : arg.slice(eq + 1);
+}
+
+function parseSource(raw: string | undefined): SourceOption {
+  if (raw === undefined) {
+    return 'both';
+  }
+  if ((VALID_SOURCES as readonly string[]).includes(raw)) {
+    return raw as SourceOption;
+  }
+  throw new UsageError(
+    `Не понимаю значение --source="${raw}". ` +
+      `Допустимые значения (пиши ровно так, маленькими буквами): ${VALID_SOURCES.join(', ')}. ` +
+      `Например: npm run index-fdc -- --source=foundation`,
+  );
+}
+
+function parseLimit(raw: string | undefined): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  // Number('') === 0 и Number('  ') === 0 в JS — пустое значение надо
+  // отсечь явно, иначе `--limit=` молча превратится в 0 и скрипт «успешно»
+  // не проиндексирует ничего.
+  const value = trimmed.length > 0 ? Number(trimmed) : NaN;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new UsageError(
+      `Не понимаю значение --limit="${raw}". ` +
+        `Нужно целое число не меньше 1 (сколько записей взять для пробного прогона). ` +
+        `Например: npm run index-fdc -- --limit=10 --dry-run`,
+    );
+  }
+  return value;
+}
+
+export function parseArgs(argv: string[]): RunOptions {
   const limitArg = argv.find((a) => a.startsWith('--limit='));
   const sourceArg = argv.find((a) => a.startsWith('--source='));
   return {
-    limit: limitArg ? Number(limitArg.split('=')[1]) : undefined,
-    source: (sourceArg?.split('=')[1] as RunOptions['source']) ?? 'both',
+    limit: parseLimit(limitArg === undefined ? undefined : flagValue(limitArg)),
+    source: parseSource(sourceArg === undefined ? undefined : flagValue(sourceArg)),
     force: argv.includes('--force'),
     dryRun: argv.includes('--dry-run'),
   };
 }
 
-function selectedDatasets(opts: RunOptions): FdcDataset[] {
+export function selectedDatasets(opts: RunOptions): FdcDataset[] {
   return FDC_DATASETS.filter((ds) => {
     if (opts.source === 'both') return true;
     if (opts.source === 'foundation') return ds.source === 'foundation_food';
-    return ds.source === 'sr_legacy_food';
+    if (opts.source === 'sr-legacy') return ds.source === 'sr_legacy_food';
+    // Недостижимо: parseSource уже отверг всё остальное. Оставлено, чтобы
+    // новое значение в VALID_SOURCES не начало молча выбирать SR Legacy.
+    throw new Error(`Необработанное значение --source: "${String(opts.source)}"`);
   });
 }
 
@@ -71,7 +132,7 @@ async function main(): Promise<void> {
 
   console.log('=== npm run index-fdc ===');
   console.log(
-    `Опции: source=${opts.source}${opts.limit ? `, limit=${opts.limit}` : ''}` +
+    `Опции: source=${opts.source}${opts.limit !== undefined ? `, limit=${opts.limit}` : ''}` +
       `${opts.force ? ', force=true' : ''}${opts.dryRun ? ', dry-run=true' : ''}`,
   );
 
@@ -206,8 +267,8 @@ async function main(): Promise<void> {
 
   // --- Steps 5-9: everything that touches the database happens here, in a
   // try/finally so the connection is always closed — never wrapped in a
-  // single transaction, so partial progress (Step 8's upsert already
-  // happened) survives even if a later step throws (D-03).
+  // single transaction, so partial progress (каждая уже записанная пачка
+  // шага 7-8) survives even if a later batch or step throws (D-03).
   const db = createDb();
   try {
     console.log('\n--- Шаг 5: пропуск уже проиндексированных записей ---');
@@ -255,32 +316,43 @@ async function main(): Promise<void> {
       return;
     }
 
-    // --- Step 7: embed with progress ---------------------------------------
-    console.log('\n--- Шаг 7: получение эмбеддингов ---');
+    // --- Steps 7-8: embed AND write, пачка за пачкой -----------------------
+    // Раньше это были два раздельных шага: сначала все ~8 200 эмбеддингов
+    // копились в памяти, и только потом уходила одна запись в базу. Любой
+    // сбой на середине выбрасывал всё уже оплаченное (CR-02). Теперь каждая
+    // пачка из 100 записей попадает в базу сразу после того, как за неё
+    // заплатили, — падение на середине оставляет всё предыдущее в базе, и
+    // повторный запуск за это уже не платит.
+    console.log('\n--- Шаги 7-8: эмбеддинги и запись в базу (по пачкам) ---');
     const embedder = createOpenAIEmbedder();
-    const embedded = await buildEmbeddings(embedder, toProcess, (done, total, batchIndex, batchCount) => {
-      console.log(`batch ${batchIndex}/${batchCount}, ${fmtCount(done)}/${fmtCount(total)} записей`);
-    });
-
-    // --- Step 8: upsert ------------------------------------------------------
-    console.log('\n--- Шаг 8: запись в базу данных ---');
-    const rows: NewFdcFood[] = embedded.map(({ record, embedding }) => {
-      const ds = FDC_DATASETS.find((d) => d.source === record.source);
-      return {
-        fdcId: record.fdcId,
-        description: record.description,
-        source: record.source,
-        kcal: record.kcal,
-        proteinG: record.proteinG,
-        fatG: record.fatG,
-        carbsG: record.carbsG,
-        sugarG: record.sugarG,
-        embedding,
-        datasetVersion: ds?.datasetVersion ?? 'unknown',
-        embeddingModelVersion: EMBEDDING_MODEL,
-      };
-    });
-    const written = await upsertFdcFoods(db, rows);
+    const written = await embedAndStore(
+      embedder,
+      toProcess,
+      async (batch) => {
+        const rows: NewFdcFood[] = batch.map(({ record, embedding }) => {
+          const ds = FDC_DATASETS.find((d) => d.source === record.source);
+          return {
+            fdcId: record.fdcId,
+            description: record.description,
+            source: record.source,
+            kcal: record.kcal,
+            proteinG: record.proteinG,
+            fatG: record.fatG,
+            carbsG: record.carbsG,
+            sugarG: record.sugarG,
+            embedding,
+            datasetVersion: ds?.datasetVersion ?? 'unknown',
+            embeddingModelVersion: EMBEDDING_MODEL,
+          };
+        });
+        return upsertFdcFoods(db, rows);
+      },
+      ({ batchIndex, batchCount, written: done, total }) => {
+        console.log(
+          `пачка ${batchIndex}/${batchCount}: записано в базу ${fmtCount(done)}/${fmtCount(total)} записей`,
+        );
+      },
+    );
     console.log(`Записано/обновлено строк: ${fmtCount(written)}`);
 
     // --- Step 9: final report ------------------------------------------------
@@ -350,10 +422,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .then(() => process.exit(0))
     .catch((err) => {
       console.error(`\n[ОШИБКА] ${err instanceof Error ? err.message : String(err)}`);
-      console.error(
-        '\nСкрипт безопасно перезапускается: `npm run index-fdc` — уже загруженные записи ' +
-          'будут пропущены.',
-      );
+      if (!(err instanceof UsageError)) {
+        console.error(
+          '\nСкрипт безопасно перезапускается: `npm run index-fdc` — записи, которые уже ' +
+            'успели записаться в базу, будут пропущены (эмбеддинги за них второй раз не оплатятся).',
+        );
+      }
       process.exit(1);
     });
 }

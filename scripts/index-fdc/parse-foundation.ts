@@ -73,10 +73,23 @@ export async function streamFoodCsv(
       continue;
     }
 
-    const fdcId = Number(record.fdc_id);
+    // Number('') === 0 и Number('   ') === 0 в JS — пустой fdc_id проходил
+    // бы проверку «конечное число» и превращался в id = 0. А `fdc_id` — это
+    // ключ, по которому идёт upsert (см. load.ts), поэтому ДВЕ такие битые
+    // строки молча схлопнулись бы в одну запись с id = 0. Отсекаем пустое
+    // значение явно, до преобразования в число — так же, как это уже
+    // сделано для amount в resolve-nutrients.ts.
+    const rawFdcId = record.fdc_id?.trim() ?? '';
+    // Только цифры: так отсеиваются и '12.5', и '1e3' (это 1000 — чужой id!),
+    // и '-5', и '0x10'. Настоящие fdc_id в FDC — это просто числа из цифр.
+    const fdcId = /^\d+$/.test(rawFdcId) ? Number(rawFdcId) : NaN;
     const description = record.description?.trim() ?? '';
-    if (!Number.isFinite(fdcId)) {
-      throw new Error(`Malformed row in ${foodCsvPath}: fdc_id "${record.fdc_id}" is not a finite integer.`);
+    // Number.isInteger отсекает NaN и Infinity; fdcId > 0 отсекает '0' и
+    // '000' — записи с id = 0 в FDC не бывает.
+    if (!Number.isInteger(fdcId) || fdcId <= 0) {
+      throw new Error(
+        `Malformed row in ${foodCsvPath}: fdc_id "${record.fdc_id ?? ''}" is not a positive integer.`,
+      );
     }
     if (description.length === 0) {
       throw new Error(`Malformed row in ${foodCsvPath}: fdc_id ${fdcId} has an empty description.`);
