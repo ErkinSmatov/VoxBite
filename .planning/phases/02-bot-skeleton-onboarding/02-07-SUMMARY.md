@@ -197,7 +197,7 @@ database, and removed immediately after). No other rows were touched.
 - The bot process was **not** started, per instruction, to leave the
   owner's Telegram long-polling connection uncontested.
 
-**Commit:** `fix(02): namespace session/conversation storage keys to stop bot_sessions collision`
+**Commit:** `4c739e2` — `fix(02): namespace session/conversation storage keys to stop bot_sessions collision`
 
 ---
 *Phase: 02-bot-skeleton-onboarding*
