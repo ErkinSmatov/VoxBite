@@ -64,7 +64,7 @@ const REQUIRED_TABLES = ['users', 'diary', 'fdc_foods'] as const;
 async function checkTablesExist(sql: postgres.Sql): Promise<void> {
   const rows = await sql<{ table_name: string }[]>`
     select table_name from information_schema.tables
-    where table_schema = 'public' and table_name = any(${sql.array([...REQUIRED_TABLES])})
+    where table_schema = 'public' and table_name in ${sql([...REQUIRED_TABLES])}
   `;
   const found = new Set(rows.map((r) => r.table_name));
   const missing = REQUIRED_TABLES.filter((t) => !found.has(t));
@@ -257,7 +257,7 @@ async function checkUsersConstraints(sql: postgres.Sql): Promise<void> {
 async function checkRls(sql: postgres.Sql): Promise<void> {
   const rows = await sql<{ relname: string; relrowsecurity: boolean }[]>`
     select relname, relrowsecurity from pg_class
-    where relname = any(${sql.array([...REQUIRED_TABLES])}) and relnamespace = 'public'::regnamespace
+    where relname in ${sql([...REQUIRED_TABLES])} and relnamespace = 'public'::regnamespace
   `;
   const byName = new Map(rows.map((r) => [r.relname, r.relrowsecurity]));
   const notEnabled = REQUIRED_TABLES.filter((t) => byName.get(t) !== true);
