@@ -85,7 +85,7 @@ Plans:
 - [x] 02-04-PLAN.md — Postgres session storage adapter, fail-closed allowlist gate, /whoami, entrypoint with 409 handling
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-05-PLAN.md — inline keyboards, idempotent users upsert, the seven-step onboarding conversation
+- [x] 02-05-PLAN.md — inline keyboards, idempotent users upsert, the seven-step onboarding conversation
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 02-06-PLAN.md — /start with the already-onboarded branch, conversation registration, manual checklist document

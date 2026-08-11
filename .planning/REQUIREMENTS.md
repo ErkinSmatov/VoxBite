@@ -14,7 +14,7 @@ Requirements for initial closed-beta release (владелец + друзья, �
 - [x] **ONBOARD-01**: Пользователь проходит онбординг: пол, возраст, рост,
       текущий вес, уровень активности, цель (набор/снижение веса/поддержание
       и биохакинг), часовой пояс
-- [ ] **ONBOARD-02**: При цели набора/снижения веса пользователь задаёт
+- [x] **ONBOARD-02**: При цели набора/снижения веса пользователь задаёт
       желаемый темп, ограниченный сверху 1 кг/месяц
 - [x] **ONBOARD-03**: Бот считает целевые калории по формуле
       Миффлина-Сан Жеора + TDEE + ограничение темпа, с нижним безопасным
@@ -23,7 +23,7 @@ Requirements for initial closed-beta release (владелец + друзья, �
       калорий и пресетов по цели
 - [x] **ONBOARD-05**: Пользователь видит рассчитанные цели и может
       подтвердить их или заново пройти онбординг для изменения вводных
-- [ ] **ONBOARD-06**: На онбординге пользователь видит дисклеймер, что бот
+- [x] **ONBOARD-06**: На онбординге пользователь видит дисклеймер, что бот
       не медицинское изделие и не заменяет консультацию врача/диетолога
 
 ### Voice & Text Input
@@ -142,11 +142,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ONBOARD-01 | Phase 2 | Complete |
-| ONBOARD-02 | Phase 2 | Pending |
+| ONBOARD-02 | Phase 2 | Complete |
 | ONBOARD-03 | Phase 1 | Complete |
 | ONBOARD-04 | Phase 1 | Pending |
 | ONBOARD-05 | Phase 2 | Complete |
-| ONBOARD-06 | Phase 2 | Pending |
+| ONBOARD-06 | Phase 2 | Complete |
 | VOICE-01 | Phase 3 | Pending |
 | VOICE-02 | Phase 3 | Pending |
 | VOICE-03 | Phase 3 | Pending |
