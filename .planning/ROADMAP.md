@@ -48,7 +48,7 @@ Plans:
 - [x] 01-01-PLAN.md — Node/TypeScript scaffolding, Vitest, secret hygiene, env loader, check-setup script
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Owner sets up Supabase (pgvector) + OpenAI (key, hard spend cap) and a working .env
+- [x] 01-02-PLAN.md — Owner sets up Supabase (pgvector) + OpenAI (key, hard spend cap) and a working .env
 - [x] 01-04-PLAN.md — Nutrition domain math: Mifflin-St Jeor, TDEE, rate cap, safety floor, target macros (TDD)
 - [x] 01-05-PLAN.md — FDC download/unzip, food.csv parsers with the foundation_food filter, priority-ordered nutrient resolution
 
