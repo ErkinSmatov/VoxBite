@@ -906,6 +906,36 @@ should match: `Твой telegram_id: ${id}`.
 
 ---
 
+## Fixes applied
+
+**Applied:** 2026-08-12
+**Scope:** four findings, chosen by the owner. The other 22 findings in this
+report were **deliberately deferred** and remain open — nothing below marks
+them as resolved.
+
+| Finding | Commit | What changed |
+|---------|--------|--------------|
+| CR-01 | `2088b2f` | `bot.catch` replaced with `src/bot/error-handler.ts`: one log line that distinguishes a Telegram rejection from a network failure from our own throw, plus a Russian reply telling the user the failure was ours and their last answers may not have been saved. Separately, `saveOnboardedUser` is now caught inside `conversation.external()` — a failed write reports itself and re-shows the confirm screen with the answers still in hand instead of terminating the conversation and discarding all seven. |
+| CR-02 | `c766506` | New `src/bot/telegram/ack.ts` answers a callback query and swallows the rejection. All four unguarded `answerCallbackQuery()` call sites (three in the conversation, one on the "Пройти анкету заново" button) now route through it, so a `400: query is too old` can no longer abort the flow. |
+| CR-03 | `4980eb4` | The conversation recognises `/cancel` and «отмена» at every step — text steps, button steps and the confirm screen — and exits via the plugin's own `conversation.halt()`, which clears the persisted `conv:<chatId>` state. Button steps now wait for text alongside the callback query so the word is not swallowed. The conversation is registered with `maxMillisecondsToWait = 24h` so an abandoned run self-clears. The escape hatch is announced once before the first question, and `bot.command('cancel')` is registered for when nothing is running. |
+| WR-02 | `7598cbd` | `buildExistingTargetsMessage` now appends `DISCLAIMER_TEXT` — the owner-approved constant, reused verbatim, no second variant. |
+
+**Verification:** `npx tsc --noEmit` clean; `npm test` green (351 tests, up from
+305). Plan 02-06's `<automated>` registration-order check passes verbatim, and
+is now also pinned inside `npm test` by `src/bot/bot.wiring.test.ts`. Every
+fix has a regression test that was confirmed to fail against the pre-fix code.
+The allowlist's fail-closed behaviour, the three-layer 1 kg/month cap, the
+`callback_data` allowlist lookups and the `sess:` / `conv:` key namespacing are
+all untouched. No bot process was started.
+
+**Still open (22), deferred by the owner:** WR-01, WR-03 through WR-15
+(14 warnings) and IN-01 through IN-08 (8 info). All three Critical findings
+are fixed; `status: issues_found` in the frontmatter stays accurate because
+these 22 remain.
+
+---
+
 _Reviewed: 2026-08-11_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+_Partial fix pass: 2026-08-12 (CR-01, CR-02, CR-03, WR-02)_
