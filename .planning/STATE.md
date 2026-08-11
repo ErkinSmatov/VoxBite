@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-08-11T16:23:56.611Z"
-last_activity: 2026-08-11 -- Phase 02 execution started
+last_updated: "2026-08-11T17:15:22.999Z"
+last_activity: 2026-08-11
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 15
-  completed_plans: 8
-  percent: 53
+  completed_plans: 11
+  percent: 73
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 ## Current Position
 
 Phase: 02 (bot-skeleton-onboarding) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 02
-Last activity: 2026-08-11 -- Phase 02 execution started
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-08-11
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 73%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 | Phase 01 P06 | 40min | 3 tasks | 7 files |
 | Phase 01 P07 | 35min | 2 tasks | 1 files |
 | Phase 01 P08 | 50min | 3 tasks | 13 files |
+| Phase 02 P01 | 6min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 01]: MATCH-02 brand-pollution check tightened to only fail on foundation_food matches or >200 total matches; SR Legacy legitimately contains ~26 brand-named entries by design
 - [Phase 01]: D-02 amended — embedding model switched from text-embedding-3-small to text-embedding-3-large truncated to 1536 dims via OpenAI dimensions param, after verify-matches exposed a real white-rice/brown-rice retrieval failure; all 8,220 rows re-indexed for $0.0144
 - [Phase 01]: fdc-repository findNearest must ORDER BY the raw cosineDistance expression ascending, never a computed similarity alias descending — the alias form silently defeats the HNSW index and falls back to a full Seq Scan (found via EXPLAIN, fixed in 35ac9f3)
+- [Phase 02]: Did not install @grammyjs/menu — Phase 2's onboarding flow is strictly linear (InlineKeyboard + conversation.waitFor), per 02-RESEARCH.md Open Question 3
+- [Phase 02]: BETA_ALLOWLIST kept out of REQUIRED_ENV_KEYS via a new OPTIONAL_ENV_KEYS export, so empty-on-first-run is explicit and fail-closed (D-04) instead of a crash
 
 ### Pending Todos
 
@@ -100,6 +103,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T12:01:30.236Z
+Last session: 2026-08-11T17:13:43.328Z
 Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-bot-skeleton-onboarding/02-CONTEXT.md
+Resume file: None

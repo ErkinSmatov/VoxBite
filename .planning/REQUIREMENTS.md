@@ -11,7 +11,7 @@ Requirements for initial closed-beta release (владелец + друзья, �
 
 ### Onboarding
 
-- [ ] **ONBOARD-01**: Пользователь проходит онбординг: пол, возраст, рост,
+- [x] **ONBOARD-01**: Пользователь проходит онбординг: пол, возраст, рост,
       текущий вес, уровень активности, цель (набор/снижение веса/поддержание
       и биохакинг), часовой пояс
 - [ ] **ONBOARD-02**: При цели набора/снижения веса пользователь задаёт
@@ -141,7 +141,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ONBOARD-01 | Phase 2 | Pending |
+| ONBOARD-01 | Phase 2 | Complete |
 | ONBOARD-02 | Phase 2 | Pending |
 | ONBOARD-03 | Phase 1 | Complete |
 | ONBOARD-04 | Phase 1 | Pending |

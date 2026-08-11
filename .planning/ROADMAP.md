@@ -77,7 +77,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — grammY + conversations deps, npm run bot, env.ts TELEGRAM_BOT_TOKEN/BETA_ALLOWLIST, BotFather walkthrough
+- [x] 02-01-PLAN.md — grammY + conversations deps, npm run bot, env.ts TELEGRAM_BOT_TOKEN/BETA_ALLOWLIST, BotFather walkthrough
 - [x] 02-02-PLAN.md — pure onboarding logic: field parsing, option lists, rate presets, profile assembly, Russian copy + disclaimer
 - [x] 02-03-PLAN.md — bot_sessions schema, generated migration + RLS, blocking owner review before db:migrate
 
