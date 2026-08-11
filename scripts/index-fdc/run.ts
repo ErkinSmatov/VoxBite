@@ -35,29 +35,85 @@ import type { NewFdcFood } from '../../src/db/schema/fdc-foods.js';
  * into the index — abort loudly instead of silently indexing them. */
 const FOUNDATION_KEPT_SANITY_LIMIT = 5000;
 
-interface RunOptions {
+/** The only accepted `--source=` values. Anything else is a typo and must
+ * stop the run: a silent fallback here would embed the WRONG dataset and
+ * spend real money doing it (7 793 строки SR Legacy вместо 469 Foundation). */
+export const VALID_SOURCES = ['foundation', 'sr-legacy', 'both'] as const;
+export type SourceOption = (typeof VALID_SOURCES)[number];
+
+/** Ошибка в самой команде (опечатка во флаге), а не сбой прогона. Отличается
+ * от обычной ошибки, чтобы не советовать «просто перезапусти» там, где надо
+ * сначала исправить команду. */
+export class UsageError extends Error {
+  readonly isUsageError = true;
+}
+
+export interface RunOptions {
   limit?: number;
-  source: 'foundation' | 'sr-legacy' | 'both';
+  source: SourceOption;
   force: boolean;
   dryRun: boolean;
 }
 
-function parseArgs(argv: string[]): RunOptions {
+/** Everything after the first `=` — так значение, внутри которого есть `=`,
+ * не обрежется молча, как это делал `split('=')[1]`. */
+function flagValue(arg: string): string {
+  const eq = arg.indexOf('=');
+  return eq === -1 ? '' : arg.slice(eq + 1);
+}
+
+function parseSource(raw: string | undefined): SourceOption {
+  if (raw === undefined) {
+    return 'both';
+  }
+  if ((VALID_SOURCES as readonly string[]).includes(raw)) {
+    return raw as SourceOption;
+  }
+  throw new UsageError(
+    `Не понимаю значение --source="${raw}". ` +
+      `Допустимые значения (пиши ровно так, маленькими буквами): ${VALID_SOURCES.join(', ')}. ` +
+      `Например: npm run index-fdc -- --source=foundation`,
+  );
+}
+
+function parseLimit(raw: string | undefined): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  // Number('') === 0 и Number('  ') === 0 в JS — пустое значение надо
+  // отсечь явно, иначе `--limit=` молча превратится в 0 и скрипт «успешно»
+  // не проиндексирует ничего.
+  const value = trimmed.length > 0 ? Number(trimmed) : NaN;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new UsageError(
+      `Не понимаю значение --limit="${raw}". ` +
+        `Нужно целое число не меньше 1 (сколько записей взять для пробного прогона). ` +
+        `Например: npm run index-fdc -- --limit=10 --dry-run`,
+    );
+  }
+  return value;
+}
+
+export function parseArgs(argv: string[]): RunOptions {
   const limitArg = argv.find((a) => a.startsWith('--limit='));
   const sourceArg = argv.find((a) => a.startsWith('--source='));
   return {
-    limit: limitArg ? Number(limitArg.split('=')[1]) : undefined,
-    source: (sourceArg?.split('=')[1] as RunOptions['source']) ?? 'both',
+    limit: parseLimit(limitArg === undefined ? undefined : flagValue(limitArg)),
+    source: parseSource(sourceArg === undefined ? undefined : flagValue(sourceArg)),
     force: argv.includes('--force'),
     dryRun: argv.includes('--dry-run'),
   };
 }
 
-function selectedDatasets(opts: RunOptions): FdcDataset[] {
+export function selectedDatasets(opts: RunOptions): FdcDataset[] {
   return FDC_DATASETS.filter((ds) => {
     if (opts.source === 'both') return true;
     if (opts.source === 'foundation') return ds.source === 'foundation_food';
-    return ds.source === 'sr_legacy_food';
+    if (opts.source === 'sr-legacy') return ds.source === 'sr_legacy_food';
+    // Недостижимо: parseSource уже отверг всё остальное. Оставлено, чтобы
+    // новое значение в VALID_SOURCES не начало молча выбирать SR Legacy.
+    throw new Error(`Необработанное значение --source: "${String(opts.source)}"`);
   });
 }
 
@@ -71,7 +127,7 @@ async function main(): Promise<void> {
 
   console.log('=== npm run index-fdc ===');
   console.log(
-    `Опции: source=${opts.source}${opts.limit ? `, limit=${opts.limit}` : ''}` +
+    `Опции: source=${opts.source}${opts.limit !== undefined ? `, limit=${opts.limit}` : ''}` +
       `${opts.force ? ', force=true' : ''}${opts.dryRun ? ', dry-run=true' : ''}`,
   );
 
@@ -350,10 +406,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .then(() => process.exit(0))
     .catch((err) => {
       console.error(`\n[ОШИБКА] ${err instanceof Error ? err.message : String(err)}`);
-      console.error(
-        '\nСкрипт безопасно перезапускается: `npm run index-fdc` — уже загруженные записи ' +
-          'будут пропущены.',
-      );
+      if (!(err instanceof UsageError)) {
+        console.error(
+          '\nСкрипт безопасно перезапускается: `npm run index-fdc` — записи, которые уже ' +
+            'успели записаться в базу, будут пропущены (эмбеддинги за них второй раз не оплатятся).',
+        );
+      }
       process.exit(1);
     });
 }
