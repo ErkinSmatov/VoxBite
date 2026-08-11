@@ -16,7 +16,7 @@ Requirements for initial closed-beta release (владелец + друзья, �
       и биохакинг), часовой пояс
 - [ ] **ONBOARD-02**: При цели набора/снижения веса пользователь задаёт
       желаемый темп, ограниченный сверху 1 кг/месяц
-- [ ] **ONBOARD-03**: Бот считает целевые калории по формуле
+- [x] **ONBOARD-03**: Бот считает целевые калории по формуле
       Миффлина-Сан Жеора + TDEE + ограничение темпа, с нижним безопасным
       порогом калорийности (см. TECH_SPEC.md §6.3)
 - [ ] **ONBOARD-04**: Бот считает целевые БЖУ (граммы) на основе целевых
@@ -50,9 +50,9 @@ Requirements for initial closed-beta release (владелец + друзья, �
 
 ### FDC Matching
 
-- [ ] **MATCH-01**: Каждый компонент блюда сопоставляется с 3 кандидатами
+- [x] **MATCH-01**: Каждый компонент блюда сопоставляется с 3 кандидатами
       из USDA FDC через embedding-based vector search
-- [ ] **MATCH-02**: Индексируется только USDA FDC Foundation Foods + SR
+- [x] **MATCH-02**: Индексируется только USDA FDC Foundation Foods + SR
       Legacy (без Branded Foods)
 
 ### Confirm & Correct
@@ -143,7 +143,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | ONBOARD-01 | Phase 2 | Pending |
 | ONBOARD-02 | Phase 2 | Pending |
-| ONBOARD-03 | Phase 1 | Pending |
+| ONBOARD-03 | Phase 1 | Complete |
 | ONBOARD-04 | Phase 1 | Pending |
 | ONBOARD-05 | Phase 2 | Pending |
 | ONBOARD-06 | Phase 2 | Pending |
@@ -154,8 +154,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DECOMP-01 | Phase 3 | Pending |
 | DECOMP-02 | Phase 3 | Pending |
 | DECOMP-03 | Phase 3 | Pending |
-| MATCH-01 | Phase 1 | Pending |
-| MATCH-02 | Phase 1 | Pending |
+| MATCH-01 | Phase 1 | Complete |
+| MATCH-02 | Phase 1 | Complete |
 | CORRECT-01 | Phase 4 | Pending |
 | CORRECT-02 | Phase 4 | Pending |
 | CORRECT-03 | Phase 4 | Pending |

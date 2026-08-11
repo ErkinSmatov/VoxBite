@@ -53,7 +53,7 @@ Plans:
 - [x] 01-05-PLAN.md — FDC download/unzip, food.csv parsers with the foundation_food filter, priority-ordered nutrient resolution
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
+- [x] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-06-PLAN.md — OpenAI embedding adapter, idempotent fdc_foods loader, npm run index-fdc pipeline
