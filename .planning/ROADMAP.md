@@ -59,7 +59,7 @@ Plans:
 - [x] 01-06-PLAN.md — OpenAI embedding adapter, idempotent fdc_foods loader, npm run index-fdc pipeline
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01-07-PLAN.md — Run the indexing pipeline for real and verify the loaded index (verify-index)
+- [x] 01-07-PLAN.md — Run the indexing pipeline for real and verify the loaded index (verify-index)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 01-08-PLAN.md — matchIngredient port + Drizzle/pgvector repository + verify-matches over 10 ingredient names
@@ -117,7 +117,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation — data + domain math | 0/8 | Not started | - |
+| 1. Foundation — data + domain math | 7/8 | In Progress | - |
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 0/TBD | Not started | - |
