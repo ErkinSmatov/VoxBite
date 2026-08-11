@@ -331,4 +331,21 @@ async function main(): Promise<void> {
   process.exit(allOk ? 0 : 1);
 }
 
-main();
+// Без этого .catch() любая ошибка базы (неверный пароль, база не отвечает,
+// нет прав на системные таблицы) вылетала бы как «unhandled promise
+// rejection» — простынёй технического стектрейса, мимо всех подсказок,
+// написанных выше по-русски.
+main().catch((err) => {
+  console.error(
+    `\n[ОШИБКА] ${err instanceof Error ? err.message : String(err)}\n\n` +
+      'Проверить схему базы не удалось — до самих проверок дело не дошло.\n' +
+      'Скорее всего дело в строке подключения DATABASE_URL в файле .env:\n' +
+      '1. Открой файл .env в корне проекта и найди строку DATABASE_URL=...\n' +
+      '2. Сравни её со строкой из Supabase: Dashboard -> Connect -> Session pooler\n' +
+      '   (нужен именно Session pooler, порт 5432, а не Transaction pooler на 6543).\n' +
+      '3. Пароль внутри этой строки — это пароль базы данных, а не пароль от аккаунта.\n' +
+      '4. Сохрани .env и запусти ещё раз: npm run verify-schema\n' +
+      'Содержимое .env никому не показывай — там пароль.',
+  );
+  process.exit(1);
+});
