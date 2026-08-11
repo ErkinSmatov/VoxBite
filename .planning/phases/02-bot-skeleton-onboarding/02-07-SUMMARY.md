@@ -10,48 +10,42 @@ requires:
     provides: DISCLAIMER_TEXT draft, onboarding conversation, /start entry point, manual checklist document
 provides:
   - Owner-approved disclaimer wording recorded in code (ONBOARD-06)
-affects: [02-bot-skeleton-onboarding (Task 3 pending), future legal review before payment milestone]
+  - Owner-signed-off manual verification of all four Phase 2 ROADMAP success criteria
+  - Storage-key-collision fix (session()/conversations() no longer share bot_sessions rows)
+affects: [Phase 2 complete, future legal review before payment milestone]
 
 # Tech tracking
 tech-stack:
   added: []
-  patterns: []
+  patterns:
+    - "createPgStorageAdapter(db, keyPrefix) namespaces grammY session() and @grammyjs/conversations storage inside one shared bot_sessions table"
 
 key-files:
-  created: []
+  created:
+    - src/bot/storage/pg-storage-adapter.test.ts (regression test for the keyPrefix collision fix, added mid-checkpoint)
   modified:
     - src/bot/formatting/onboarding-copy.ts
     - .planning/phases/02-bot-skeleton-onboarding/02-MANUAL-CHECKLIST.md
+    - src/bot/storage/pg-storage-adapter.ts (keyPrefix param, added mid-checkpoint)
+    - src/bot/bot.ts ('sess:'/'conv:' prefixes, added mid-checkpoint)
 
 key-decisions:
   - "Owner approved DISCLAIMER_TEXT unchanged, character for character, on 2026-08-11 (approve-as-is option)"
+  - "Owner's Task 3 sign-off was a single blanket confirmation ('Все прошло без ошибок'), not a recorded per-item transcript — documented explicitly rather than presented as if each of the 29 items was individually reported"
 
-patterns-established: []
+patterns-established:
+  - "Any grammY plugin backed by the shared bot_sessions table via createPgStorageAdapter must pass a distinct keyPrefix — two plugins defaulting their storage key to ctx.chatId collide silently"
 
-requirements-completed: []  # ONBOARD-02, ONBOARD-05, ONBOARD-06 NOT yet complete — Task 3 (manual walkthrough) still pending, see status below.
+requirements-completed: [ONBOARD-02, ONBOARD-05, ONBOARD-06]
 
 # Metrics
-duration: in progress (paused at checkpoint)
-completed: null
+duration: same-day (spanned a checkpoint pause for owner walkthrough)
+completed: 2026-08-11
 ---
 
-# Phase 02 Plan 07: Disclaimer approval + manual checklist walkthrough (PARTIAL — paused at Task 3)
+# Phase 02 Plan 07: Disclaimer approval + manual checklist walkthrough Summary
 
-**Owner approved the ONBOARD-06 disclaimer wording unchanged on 2026-08-11; the plan is paused before the mandatory real-Telegram manual checklist walkthrough (Task 3), which only the owner can perform.**
-
-## Status: PAUSED AT CHECKPOINT (Task 3 of 3)
-
-This is an interim SUMMARY. Task 1 and Task 2 are complete and committed.
-Task 3 (`checkpoint:human-verify`) requires the owner to run the bot and walk
-`.planning/phases/02-bot-skeleton-onboarding/02-MANUAL-CHECKLIST.md` in a real
-Telegram client. This cannot be done by the executing agent. **Do not consider
-this plan, or Phase 2, complete until Task 3 is finished and this file is
-updated with the walkthrough results and a `completed:` date.**
-
-## Performance (partial)
-
-- **Tasks completed:** 2 of 3 (Task 1: decision, Task 2: apply approval)
-- **Files modified:** 2
+**Owner approved the ONBOARD-06 disclaimer wording unchanged on 2026-08-11, then walked the full manual checklist in a real Telegram client, hit and confirmed the fix for a real storage-key-collision bug in Section 1, and gave a final blanket "Все прошло без ошибок" — closing Phase 2's last two open items.**
 
 ## Task 1: Owner approves the disclaimer wording (checkpoint:decision) — RESOLVED
 
@@ -95,110 +89,129 @@ than pending.
 
 **Commit:** `9a59a69` — `feat(02-07): record owner approval of disclaimer wording`
 
-## Task Commits
+## Mid-checkpoint bug fix: storage-key collision (found by the walkthrough)
 
-1. **Task 1: Owner approves disclaimer wording** — decision only, no commit (no file changes per plan)
-2. **Task 2: Apply approved wording and re-verify** — `9a59a69` (feat)
-
-## Decisions Made
-
-- Owner approved the ONBOARD-06 disclaimer wording exactly as drafted, closing the STATE.md blocker "Legal/medical disclaimer copy (Phase 2, ONBOARD-06) still needs final wording from the owner" — see updated STATE.md.
-- Owner was told a real legal review is advisable before the paid-subscription milestone (not before closed beta).
-
-## Deviations from Plan
-
-None — Task 1 and Task 2 executed exactly as written.
-
-## Issues Encountered
-
-None so far. Task 3 not yet attempted.
-
-## Task 3: Owner walks the manual checklist (checkpoint:human-verify) — NOT STARTED
-
-This is the blocking checkpoint. See the orchestrator's checkpoint return for
-the Russian-language orientation given to the owner. No checklist box has
-been ticked, no bot process was started by the agent, and `BETA_ALLOWLIST`
-was not touched — all of that is the owner's step to perform.
-
-**When the owner completes the walkthrough**, a follow-up agent should:
-1. Verify every checkbox in `02-MANUAL-CHECKLIST.md` is ticked and a sign-off date is filled in.
-2. Record the owner's per-section results in this SUMMARY (replacing this section).
-3. Note any defect found as gap-closure input.
-4. Update `requirements-completed` to `[ONBOARD-02, ONBOARD-05, ONBOARD-06]`, set `completed:` date and `duration:`.
-5. Commit the checklist and this SUMMARY together.
-6. Run the standard STATE.md / ROADMAP.md / REQUIREMENTS.md updates and final metadata commit.
-
-## Next Phase Readiness
-
-Not ready — Phase 2 cannot be marked complete until Task 3's manual
-walkthrough is done and this SUMMARY is finalized with real results.
-
-## Deviations / Fixes (gap fix, post-checkpoint)
-
-**This is exactly the kind of defect Task 3's manual checklist exists to
-catch — and it did.** During the owner's real walkthrough of Task 3, sending
+**This is exactly the kind of defect the manual checklist exists to catch —
+and it did.** During the owner's first real walkthrough of Task 3, sending
 `/start` produced `Ошибка обработчика: Error in middleware: Unknown data
-format, cannot parse version` instead of the onboarding greeting. This is
-recorded as evidence the checklist earns its keep: an automated test suite
-that only exercises adapters in isolation would not have caught a cross-
-subsystem key collision that only manifests when both `session()` and
-`conversations()` run against the same live chat.
+format, cannot parse version` instead of the onboarding greeting. No unit
+test caught this — it only manifests when `session()` and `conversations()`
+run against the same live chat.
 
 **Root cause:** `src/bot/bot.ts` wired both grammY's `session()` middleware
 and `@grammyjs/conversations`' `conversations()` plugin to two *separate
 instances* of `createPgStorageAdapter(deps.db)`, both backed by the same
 `bot_sessions` table. grammY's `defaultGetSessionKey` and the conversations
 plugin's `defaultStorageKey` both default to `ctx.chatId?.toString()` — in a
-private chat these are the identical string, so both subsystems read and
-wrote the *same row*. `session()` ran first and wrote its plain initial
-value `{}`. `conversations()` then read that same row expecting its own
-versioned envelope (`{ version: [...] }`) and its `unpack()` threw `Unknown
-data format, cannot parse version`. Confirmed live in the database: the
-single `bot_sessions` row for the owner's chat held `value={}` with no
-`version` field (the row's `key` was the owner's numeric Telegram chat ID —
-not reproduced here per this project's rule against committing the owner's
-Telegram ID into files).
+private chat these are identical strings, so both subsystems read and wrote
+the same row. `session()` ran first and wrote its plain initial value `{}`.
+`conversations()` then read that same row expecting its own versioned
+envelope (`{ version: [...] }`) and its `unpack()` threw `Unknown data
+format, cannot parse version`.
 
-**Fix:** `createPgStorageAdapter(db, keyPrefix)` in
-`src/bot/storage/pg-storage-adapter.ts` now accepts an optional key prefix,
-applied inside `read`/`write`/`delete` before touching the table. `bot.ts`
-now passes `'sess:'` to the session adapter and `'conv:'` to the
+**Fix:** `createPgStorageAdapter(db, keyPrefix)` now accepts an optional key
+prefix, applied inside `read`/`write`/`delete` before touching the table.
+`bot.ts` now passes `'sess:'` to the session adapter and `'conv:'` to the
 conversations adapter, so the two subsystems get disjoint key namespaces
 within the same table even for an identical raw chat-ID key. Middleware
-registration order (allowlist → session → conversations → conversation →
-commands, decision D-05) and the stored value's opacity were both left
-unchanged — the fix is purely inside the adapter factory and its two call
-sites.
+registration order and the stored value's opacity were left unchanged.
 
-**Regression test:** added
-`src/bot/storage/pg-storage-adapter.test.ts` — *"two adapters with different
-keyPrefix values do not observe each other's writes for the same logical
-key"*. It builds a `'sess:'`-prefixed adapter and a `'conv:'`-prefixed
-adapter over one fake in-memory table, writes a session-shaped value under
-a shared raw chat-ID-shaped key, asserts the conversation adapter reads
-`undefined` (not the session's value) for that same raw key, then writes
-and re-reads both independently to confirm the underlying fake table ends
-up with two distinct rows (`sess:<key>`, `conv:<key>`) rather than one
-shared row. This test fails against the pre-fix adapter (no `keyPrefix`
-parameter, same raw key used by both).
+**Regression test:** `src/bot/storage/pg-storage-adapter.test.ts` — asserts
+a `'sess:'`-prefixed adapter and a `'conv:'`-prefixed adapter over one fake
+table do not observe each other's writes for the same logical key, and end
+up as two distinct rows rather than one shared row. Fails against the
+pre-fix adapter.
 
 **Stale row cleanup:** the live `bot_sessions` row for the owner's chat
-(`value={}`) is now orphaned — no consumer looks up an unprefixed key
-anymore. It contained no user data (an empty session object), so it was
-deleted via a one-off script (`npx tsx`, not a migration, not committed —
-the script was written to a temp path, run once directly against the live
-database, and removed immediately after). No other rows were touched.
+(`value={}`, no user data) was orphaned by the fix and deleted via a one-off
+script run once directly against the live database and removed immediately
+after (not committed, not a migration).
 
-**Verification run after the fix:**
+**Verification after the fix:** `npx tsc --noEmit` clean, `npm test`
+305/305 passed. The bot process was not started by the agent, per
+instruction, to leave the owner's Telegram long-polling connection
+uncontested.
+
+**Commits:** `4c739e2` (fix), `36bada6` (docs: record commit hash).
+
+## Task 3: Owner walks the manual checklist (checkpoint:human-verify) — RESOLVED
+
+The owner ran the bot in a real Telegram client, walked
+`02-MANUAL-CHECKLIST.md`, hit the Section 1 failure above, waited for the
+fix, restarted the bot, and re-ran the walkthrough. Their final report,
+verbatim: **"Все прошло без ошибок"** (2026-08-11).
+
+**Honesty note on the form of this confirmation:** the owner gave one
+blanket confirmation after completing the checklist, not a section-by-
+section transcript. All 29 checkboxes in `02-MANUAL-CHECKLIST.md` are ticked
+and the sign-off block is dated 2026-08-11, but the sign-off block itself
+states plainly that this reflects a single overall attestation rather than
+29 individually reported results. No specific per-section observation,
+screenshot, or message text beyond what is documented above (the Section 1
+error and its fix) was reported by the owner and none is fabricated here.
+
+**What is factually known, not inferred:**
+- Section 1 (`/start` walks all 7 fields) initially failed with `Unknown
+  data format, cannot parse version`, was fixed in `4c739e2`, and the owner
+  re-ran the full walkthrough afterward.
+- The owner's final word after that re-run was "Все прошло без ошибок",
+  which is being treated as sign-off on all four ROADMAP success criteria
+  (7-question flow, ≤1 kg/month rate cap, confirm/Изменить + persisted
+  targets, disclaimer visible before confirmation) and the three resilience
+  scenarios (409 two-terminal conflict, mid-conversation restart continuity,
+  no-internet handling) described in the checklist.
+
+**Commit:** `c33cd65` — `docs(02-07): sign off manual checklist after owner walkthrough`
+
+## Task Commits
+
+1. **Task 1: Owner approves disclaimer wording** — decision only, no commit (no file changes per plan)
+2. **Task 2: Apply approved wording and re-verify** — `9a59a69` (feat)
+3. **Mid-checkpoint bug fix** — `4c739e2` (fix), `36bada6` (docs)
+4. **Task 3: Sign off manual checklist** — `c33cd65` (docs)
+
+## Decisions Made
+
+- Owner approved the ONBOARD-06 disclaimer wording exactly as drafted, closing the STATE.md blocker "Legal/medical disclaimer copy (Phase 2, ONBOARD-06) still needs final wording from the owner".
+- Owner was told a real legal review is advisable before the paid-subscription milestone (not before closed beta).
+- The Section 1 failure is retained in the record as evidence the manual checklist earns its place — no automated test in the 305-test suite caught it.
+
+## Deviations from Plan
+
+**1. [Rule 1 - Bug] Fixed session()/conversations() storage-key collision**
+- **Found during:** Task 3 (owner's live walkthrough of Section 1)
+- **Issue:** both grammY plugins defaulted to the same `ctx.chatId` storage key over the shared `bot_sessions` table, causing `conversations()` to fail unpacking `session()`'s plain value
+- **Fix:** added an optional `keyPrefix` to `createPgStorageAdapter`; `bot.ts` now passes disjoint `'sess:'`/`'conv:'` prefixes
+- **Files modified:** `src/bot/storage/pg-storage-adapter.ts`, `src/bot/bot.ts`, `src/bot/storage/pg-storage-adapter.test.ts` (new)
+- **Commit:** `4c739e2`, `36bada6`
+
+Otherwise — Task 1 and Task 2 executed exactly as written.
+
+## Issues Encountered
+
+The Section 1 storage-key collision above was the only issue. It was found,
+fixed, regression-tested, and confirmed resolved by the owner's re-run —
+no other defects were reported.
+
+## Self-Check: PASSED
+
+- `.planning/phases/02-bot-skeleton-onboarding/02-MANUAL-CHECKLIST.md` — FOUND, 29/29 boxes ticked, sign-off dated 2026-08-11
+- Commit `9a59a69` — FOUND in git log
+- Commit `4c739e2` — FOUND in git log
+- Commit `36bada6` — FOUND in git log
+- Commit `c33cd65` — FOUND in git log
 - `npx tsc --noEmit` — clean
-- `npm test` — 305/305 passed (22 files; +1 test from the regression case)
-- Plan 02-06's registration-order static check (re-run verbatim from its
-  `<automated>` verify block) — `start wiring OK`
-- The bot process was **not** started, per instruction, to leave the
-  owner's Telegram long-polling connection uncontested.
+- `npm test` — 305/305 passed
 
-**Commit:** `4c739e2` — `fix(02): namespace session/conversation storage keys to stop bot_sessions collision`
+## Next Phase Readiness
+
+Phase 2 (bot-skeleton-onboarding) is complete. All four ROADMAP success
+criteria and the three resilience scenarios have owner sign-off in a real
+Telegram client, the ONBOARD-06 disclaimer is the owner's approved wording
+with a guarding test, and the storage-key-collision bug found during
+verification is fixed with a regression test. Phase 3 (voice pipeline) can
+begin.
 
 ---
 *Phase: 02-bot-skeleton-onboarding*
-*Status: PAUSED — awaiting Task 3 (owner manual verification); this gap fix unblocks the owner to retry `/start`*
+*Status: COMPLETE*
