@@ -21,7 +21,7 @@ Requirements for initial closed-beta release (владелец + друзья, �
       порогом калорийности (см. TECH_SPEC.md §6.3)
 - [ ] **ONBOARD-04**: Бот считает целевые БЖУ (граммы) на основе целевых
       калорий и пресетов по цели
-- [ ] **ONBOARD-05**: Пользователь видит рассчитанные цели и может
+- [x] **ONBOARD-05**: Пользователь видит рассчитанные цели и может
       подтвердить их или заново пройти онбординг для изменения вводных
 - [ ] **ONBOARD-06**: На онбординге пользователь видит дисклеймер, что бот
       не медицинское изделие и не заменяет консультацию врача/диетолога
@@ -145,7 +145,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ONBOARD-02 | Phase 2 | Pending |
 | ONBOARD-03 | Phase 1 | Complete |
 | ONBOARD-04 | Phase 1 | Pending |
-| ONBOARD-05 | Phase 2 | Pending |
+| ONBOARD-05 | Phase 2 | Complete |
 | ONBOARD-06 | Phase 2 | Pending |
 | VOICE-01 | Phase 3 | Pending |
 | VOICE-02 | Phase 3 | Pending |

@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-08-11T17:15:22.999Z"
+last_updated: "2026-08-11T17:20:05.625Z"
 last_activity: 2026-08-11
 progress:
   total_phases: 5
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 ## Current Position
 
 Phase: 02 (bot-skeleton-onboarding) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-08-11
 
@@ -58,6 +58,7 @@ Progress: [███████░░░] 73%
 | Phase 01 P07 | 35min | 2 tasks | 1 files |
 | Phase 01 P08 | 50min | 3 tasks | 13 files |
 | Phase 02 P01 | 6min | 3 tasks | 5 files |
+| Phase 02 P03 | same-day | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Recent decisions affecting current work:
 - [Phase 01]: fdc-repository findNearest must ORDER BY the raw cosineDistance expression ascending, never a computed similarity alias descending — the alias form silently defeats the HNSW index and falls back to a full Seq Scan (found via EXPLAIN, fixed in 35ac9f3)
 - [Phase 02]: Did not install @grammyjs/menu — Phase 2's onboarding flow is strictly linear (InlineKeyboard + conversation.waitFor), per 02-RESEARCH.md Open Question 3
 - [Phase 02]: BETA_ALLOWLIST kept out of REQUIRED_ENV_KEYS via a new OPTIONAL_ENV_KEYS export, so empty-on-first-run is explicit and fail-closed (D-04) instead of a crash
+- [Phase 02]: Kept drizzle-kit auto-generated migration filename 0003_grey_anthem.sql instead of renaming to plan placeholder
 
 ### Pending Todos
 
@@ -103,6 +105,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T17:13:43.328Z
+Last session: 2026-08-11T17:18:20.317Z
 Stopped at: Phase 2 context gathered
 Resume file: None
