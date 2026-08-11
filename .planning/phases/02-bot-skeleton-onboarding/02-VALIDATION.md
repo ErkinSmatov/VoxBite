@@ -1,10 +1,11 @@
 ---
 phase: 2
 slug: bot-skeleton-onboarding
-status: draft
-nyquist_compliant: false
+status: active
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-08-11
+synced_with_plans: 2026-08-11
 ---
 
 # Phase 2 — Validation Strategy
@@ -44,7 +45,8 @@ created: 2026-08-11
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | TBD | TBD | TBD | ONBOARD-01 | — | Numeric fields rejected unless plausible; Russian re-prompt with example | unit | `npx vitest run src/bot/onboarding/parse-fields.test.ts` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | ONBOARD-01 | — | Complete answer set assembles a valid `NutritionProfile` for `calculateNutritionTargets` | unit | `npx vitest run src/bot/onboarding/assemble-profile.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | ONBOARD-02 | — | Rate presets constant is exactly `[0.25, 0.5, 0.75, 1]` — >1 kg/month is unrepresentable in the UI | unit | `npx vitest run src/bot/keyboards/onboarding-menus.test.ts` | ❌ W0 | ⬜ pending |
+| TBD | 02-02 | 1 | ONBOARD-02 | — | `RATE_PRESETS_KG_PER_MONTH` is exactly `[0.25, 0.5, 0.75, 1]` and equals the domain's `MAX_RATE_KG_PER_MONTH` at its top — >1 kg/month is unrepresentable in the UI | unit | `npx vitest run src/bot/onboarding/rate-presets.test.ts` | ❌ W0 | ⬜ pending |
+| TBD | 02-05 | 3 | ONBOARD-02 | — | The rendered keyboard is built from `RATE_PRESETS_KG_PER_MONTH` and re-hardcodes no rate literal | unit | `npx vitest run src/bot/keyboards/onboarding-keyboards.test.ts` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | ONBOARD-06 | — | Confirmation message body contains the non-medical-device disclaimer string | unit | `npx vitest run src/bot/formatting/onboarding-copy.test.ts` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | D-04 / D-05 | T-02-ALLOWLIST | `parseAllowlist('')` and `parseAllowlist(undefined)` → empty set (fail-closed); malformed entries dropped, never throw | unit | `npx vitest run src/bot/middleware/allowlist.test.ts` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | ONBOARD-05 | T-02-REPLAY | Confirm persists profile + `onboardedAt`; restart does not persist a partial row; DB write is idempotent under conversation replay | unit or integration | `npx vitest run src/bot/onboarding/save-user.test.ts` | ❌ W0 | ⬜ pending |
@@ -55,18 +57,24 @@ created: 2026-08-11
 
 ## Wave 0 Requirements
 
-- [ ] `src/bot/onboarding/parse-fields.test.ts` — stubs for ONBOARD-01 field parsing
-- [ ] `src/bot/onboarding/assemble-profile.test.ts` — stubs for ONBOARD-01 profile assembly
-- [ ] `src/bot/keyboards/onboarding-menus.test.ts` — stubs for ONBOARD-02 rate cap
-- [ ] `src/bot/formatting/onboarding-copy.test.ts` — stubs for ONBOARD-06 disclaimer
-- [ ] `src/bot/middleware/allowlist.test.ts` — stubs for D-04/D-05 fail-closed allowlist
-- [ ] `.planning/phases/02-bot-skeleton-onboarding/02-MANUAL-CHECKLIST.md` — the D-08 manual check-list document (exact filename is the planner's call)
+Final list, synced against the seven plans' `files_modified`:
+
+- [ ] `src/bot/onboarding/parse-fields.test.ts` (02-02) — ONBOARD-01 field parsing
+- [ ] `src/bot/onboarding/options.test.ts` (02-02) — ONBOARD-01 button option sets
+- [ ] `src/bot/onboarding/assemble-profile.test.ts` (02-02) — ONBOARD-01 profile assembly
+- [ ] `src/bot/onboarding/rate-presets.test.ts` (02-02) — ONBOARD-02 structural rate cap
+- [ ] `src/bot/formatting/onboarding-copy.test.ts` (02-02) — ONBOARD-06 disclaimer presence
+- [ ] `src/bot/middleware/allowlist.test.ts` (02-04) — D-04/D-05 fail-closed allowlist
+- [ ] `src/bot/storage/pg-storage-adapter.test.ts` (02-04) — session persistence adapter
+- [ ] `src/bot/keyboards/onboarding-keyboards.test.ts` (02-05) — keyboards built from the presets constant
+- [ ] `src/bot/onboarding/save-user.test.ts` (02-05) — ONBOARD-05 idempotent `users` upsert
+- [ ] `src/bot/commands/start.test.ts` (02-06) — `/start`, incl. the already-onboarded branch
+- [ ] Manual check-list document (02-06) — the D-08 walkthrough of the four success criteria
 - [ ] No framework install needed — Vitest configured in Phase 1
 
-*Exact module paths depend on the planner's resolution of RESEARCH.md Open Question 1
-(`src/bot/onboarding/` vs `src/application/onboarding/`). The constraint that matters:
-every file in this list must be importable with **zero grammY imports** so it stays a
-pure unit test (D-08, D-09).*
+*Open Question 1 was resolved to `src/bot/onboarding/` (no `src/application/` layer this
+phase). The constraint that matters is unchanged: every file in this list must be importable
+with **zero grammY imports** so it stays a pure unit test (D-08, D-09).*
 
 ---
 
@@ -85,11 +93,16 @@ pure unit test (D-08, D-09).*
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags (`vitest run`, never `vitest --watch`)
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+Verified by gsd-plan-checker against the seven plans on 2026-08-11:
 
-**Approval:** pending
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags (`vitest run`, never `vitest --watch`)
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
+
+`wave_0_complete` stays `false` until the test files above actually exist on disk —
+that flips during execution, not planning.
+
+**Approval:** approved 2026-08-11 (plan-checker: 0 blockers)

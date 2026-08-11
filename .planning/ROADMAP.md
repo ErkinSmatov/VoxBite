@@ -76,12 +76,21 @@ Plans:
 **Plans**: 7 plans
 
 Plans:
+**Wave 1**
 - [ ] 02-01-PLAN.md — grammY + conversations deps, npm run bot, env.ts TELEGRAM_BOT_TOKEN/BETA_ALLOWLIST, BotFather walkthrough
 - [ ] 02-02-PLAN.md — pure onboarding logic: field parsing, option lists, rate presets, profile assembly, Russian copy + disclaimer
 - [ ] 02-03-PLAN.md — bot_sessions schema, generated migration + RLS, blocking owner review before db:migrate
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-04-PLAN.md — Postgres session storage adapter, fail-closed allowlist gate, /whoami, entrypoint with 409 handling
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-05-PLAN.md — inline keyboards, idempotent users upsert, the seven-step onboarding conversation
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 02-06-PLAN.md — /start with the already-onboarded branch, conversation registration, manual checklist document
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-07-PLAN.md — owner sign-off on the disclaimer wording and the manual checklist walkthrough
 **UI hint**: yes
 

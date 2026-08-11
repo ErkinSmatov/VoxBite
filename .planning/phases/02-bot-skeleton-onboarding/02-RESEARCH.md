@@ -535,19 +535,37 @@ export function buildRateKeyboard(): InlineKeyboard {
 
 **If this table is empty:** N/A — see rows above.
 
-## Open Questions
+## Open Questions (RESOLVED — settled during planning, 2026-08-11)
 
-1. **Where does the pure onboarding-parsing module live — `src/bot/onboarding/` or `src/application/onboarding/`?**
+> All three were decided by the planner and are recorded in the plans'
+> `<decisions_settled_here>` blocks. Answers are annotated inline below.
+
+1. **RESOLVED → `src/bot/onboarding/`** (settled in plan `02-01`, and matched by
+   `02-VALIDATION.md`'s test paths). No `src/application/` layer is created this phase;
+   the modules stay grammY-free, which is what D-08 actually requires. Revisit the
+   `application/` layer in Phase 3 when `voice-pipeline.ts` needs a home.
+
+   **Where does the pure onboarding-parsing module live — `src/bot/onboarding/` or `src/application/onboarding/`?**
    - What we know: `ARCHITECTURE.md`'s target structure names `application/onboarding-flow.ts` as the eventual home for "collects profile fields, calls domain/nutrition." D-08 only requires the parsing/validation logic to be import-clean of grammY, not a specific folder.
    - What's unclear: Whether Phase 2 should establish the full `application/` layer now, or whether a `src/bot/onboarding/` (co-located, still grammY-free) module is an acceptable interim step given Phase 2 is the very first bot code in the repo.
    - Recommendation: Planner's call — either is consistent with this research; lean toward matching `ARCHITECTURE.md`'s named path (`application/onboarding-flow.ts` or a small `application/onboarding/` folder) since Phase 3 will likely need its own `application/voice-pipeline.ts` next to it anyway, and establishing the pattern now avoids a rename later.
 
-2. **`bot_sessions` table: separate migration in this phase, and does it belong in `src/db/schema/`?**
+2. **RESOLVED → `src/db/schema/bot-sessions.ts`** with a `jsonb` value column, plus a
+   *generated* migration and a hand-written `0004_bot_sessions_rls.sql` enabling RLS with
+   zero policies (same treatment as `users`/`diary`); `bot_sessions` is added to
+   `verify-schema`'s `REQUIRED_TABLES`. Settled in plan `02-03`.
+
+   **`bot_sessions` table: separate migration in this phase, and does it belong in `src/db/schema/`?**
    - What we know: grammY session/conversation storage needs a durable table; existing schema/migration conventions (Phase 1: 3 separate migrations for extension/schema/RLS, `drizzle-kit generate+migrate`) should be followed.
    - What's unclear: Exact column shape beyond `key`/`value`/`updated_at` (e.g., whether RLS applies here the way it does to `users`/`diary` — probably not needed since this table has no direct end-user-facing read path, but worth a deliberate call).
    - Recommendation: Planner should treat this as a new, small Drizzle schema file (e.g. `src/db/schema/bot-sessions.ts`) + its own generated migration, following the exact Phase 1 pattern already established.
 
-3. **`@grammyjs/menu` vs plain `InlineKeyboard` + `waitFor('callback_query:data')` for this phase's buttons.**
+3. **RESOLVED → plain `InlineKeyboard` + `conversation.waitFor('callback_query:data')`.**
+   `@grammyjs/menu` is deferred to Phase 4 (candidate picker / ±10g steppers), which sidesteps
+   Pitfall 5 and Assumption A2 entirely for this phase. Settled in plan `02-01`, which adds an
+   automated check that fails if `@grammyjs/menu` is installed.
+
+   **`@grammyjs/menu` vs plain `InlineKeyboard` + `waitFor('callback_query:data')` for this phase's buttons.**
    - What we know: Both are technically capable of the 5 button-based fields (sex, activity, goal, rate, timezone) in a strictly linear flow with no re-rendering/pagination need.
    - What's unclear: Whether `@grammyjs/menu`'s `conversation.menu()` integration is worth the extra dependency/concept for a flow this simple, versus deferring `@grammyjs/menu` to Phase 4 where its stateful re-render behavior (candidate picker, ±10g steppers) actually earns its complexity.
    - Recommendation: Default to plain `InlineKeyboard` (already in grammY core, zero extra dependency) + `conversation.waitFor('callback_query:data')` for Phase 2's linear flow; introduce `@grammyjs/menu` starting Phase 4. This simplifies Phase 2's dependency surface and sidesteps Pitfall 5 entirely. Flagging as an open question rather than baking into Standard Stack because CONTEXT.md's "Claude's Discretion" section explicitly left "framework plumbing" open and STACK.md named `@grammyjs/menu` as a candidate for the correction UX specifically (Phase 4's actual named use case), not onboarding.
