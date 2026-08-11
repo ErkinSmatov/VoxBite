@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
+status: verifying
 stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-08-11T07:55:44.005Z"
+last_updated: "2026-08-11T08:36:12.006Z"
 last_activity: 2026-08-11
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 
 Phase: 01 (foundation-data-domain-math) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-11
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 88%
 | Phase 01 P03 | 45min | 3 tasks | 12 files |
 | Phase 01 P06 | 40min | 3 tasks | 7 files |
 | Phase 01 P07 | 35min | 2 tasks | 1 files |
+| Phase 01 P08 | 50min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Embedding input text is the bare description string only (no category prepended) — deferred per 01-RESEARCH.md Open Question #2
 - [Phase 01]: isIndexable() excludes only records with protein, fat AND carbs all null; a measured 0 counts as present data
 - [Phase 01]: MATCH-02 brand-pollution check tightened to only fail on foundation_food matches or >200 total matches; SR Legacy legitimately contains ~26 brand-named entries by design
+- [Phase 01]: D-02 amended — embedding model switched from text-embedding-3-small to text-embedding-3-large truncated to 1536 dims via OpenAI dimensions param, after verify-matches exposed a real white-rice/brown-rice retrieval failure; all 8,220 rows re-indexed for $0.0144
+- [Phase 01]: fdc-repository findNearest must ORDER BY the raw cosineDistance expression ascending, never a computed similarity alias descending — the alias form silently defeats the HNSW index and falls back to a full Seq Scan (found via EXPLAIN, fixed in 35ac9f3)
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T07:53:46.613Z
+Last session: 2026-08-11T08:34:51.070Z
 Stopped at: Completed 01-06-PLAN.md
 Resume file: None

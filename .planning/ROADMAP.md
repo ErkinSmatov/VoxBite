@@ -24,7 +24,7 @@ reminders, and other v2 features are explicitly out of this roadmap.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation — data + domain math** - Postgres schema, offline USDA FDC indexing pipeline, and pure domain layer (BMR/TDEE/target calc, FDC embedding matching) — no Telegram, no bot code
+- [x] **Phase 1: Foundation — data + domain math** - Postgres schema, offline USDA FDC indexing pipeline, and pure domain layer (BMR/TDEE/target calc, FDC embedding matching) — no Telegram, no bot code (completed 2026-08-11)
 - [ ] **Phase 2: Bot skeleton + onboarding** - Webhook handler and onboarding conversation that collects profile data and shows calculated КБЖУ targets
 - [ ] **Phase 3: Voice pipeline** - Voice/text message → STT → LLM dish decomposition → per-ingredient FDC matching, wired end to end with idempotency
 - [ ] **Phase 4: Confirm/correct + diary persistence** - Candidate-picker correction UX, persisted draft state, deterministic final calculation, diary write, edit/delete saved entries
@@ -62,7 +62,7 @@ Plans:
 - [x] 01-07-PLAN.md — Run the indexing pipeline for real and verify the loaded index (verify-index)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-08-PLAN.md — matchIngredient port + Drizzle/pgvector repository + verify-matches over 10 ingredient names
+- [x] 01-08-PLAN.md — matchIngredient port + Drizzle/pgvector repository + verify-matches over 10 ingredient names
 
 ### Phase 2: Bot skeleton + onboarding
 **Goal**: Users can complete onboarding through the real Telegram bot and see their calculated КБЖУ targets, validating the webhook/bot-framework plumbing before the AI pipeline is layered on top.
@@ -117,7 +117,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation — data + domain math | 7/8 | In Progress | - |
+| 1. Foundation — data + domain math | 8/8 | Complete   | 2026-08-11 |
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 0/TBD | Not started | - |
