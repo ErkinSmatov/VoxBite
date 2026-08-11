@@ -31,37 +31,92 @@ const CASES: Array<{
     fatG: number;
     carbsG: number;
     floorApplied: boolean;
+    rateKgPerMonth: number;
   };
 }> = [
   {
     sex: 'male',
     goal: 'gain',
-    expected: { bmr: 1749, tdee: 2711, targetKcal: 2968, proteinG: 144, fatG: 72, carbsG: 436, floorApplied: false },
+    expected: {
+      bmr: 1749,
+      tdee: 2711,
+      targetKcal: 2968,
+      proteinG: 144,
+      fatG: 72,
+      carbsG: 436,
+      floorApplied: false,
+      rateKgPerMonth: 1,
+    },
   },
   {
     sex: 'male',
     goal: 'loss',
-    expected: { bmr: 1749, tdee: 2711, targetKcal: 2454, proteinG: 144, fatG: 72, carbsG: 308, floorApplied: false },
+    expected: {
+      bmr: 1749,
+      tdee: 2711,
+      targetKcal: 2454,
+      proteinG: 144,
+      fatG: 72,
+      carbsG: 308,
+      floorApplied: false,
+      rateKgPerMonth: 1,
+    },
   },
   {
     sex: 'male',
     goal: 'maintain',
-    expected: { bmr: 1749, tdee: 2711, targetKcal: 2711, proteinG: 144, fatG: 72, carbsG: 372, floorApplied: false },
+    expected: {
+      bmr: 1749,
+      tdee: 2711,
+      targetKcal: 2711,
+      proteinG: 144,
+      fatG: 72,
+      carbsG: 372,
+      floorApplied: false,
+      rateKgPerMonth: 0,
+    },
   },
   {
     sex: 'female',
     goal: 'gain',
-    expected: { bmr: 1380, tdee: 2139, targetKcal: 2396, proteinG: 117, fatG: 59, carbsG: 350, floorApplied: false },
+    expected: {
+      bmr: 1380,
+      tdee: 2139,
+      targetKcal: 2396,
+      proteinG: 117,
+      fatG: 59,
+      carbsG: 350,
+      floorApplied: false,
+      rateKgPerMonth: 1,
+    },
   },
   {
     sex: 'female',
     goal: 'loss',
-    expected: { bmr: 1380, tdee: 2139, targetKcal: 1882, proteinG: 117, fatG: 59, carbsG: 222, floorApplied: false },
+    expected: {
+      bmr: 1380,
+      tdee: 2139,
+      targetKcal: 1882,
+      proteinG: 117,
+      fatG: 59,
+      carbsG: 222,
+      floorApplied: false,
+      rateKgPerMonth: 1,
+    },
   },
   {
     sex: 'female',
     goal: 'maintain',
-    expected: { bmr: 1380, tdee: 2139, targetKcal: 2139, proteinG: 117, fatG: 59, carbsG: 286, floorApplied: false },
+    expected: {
+      bmr: 1380,
+      tdee: 2139,
+      targetKcal: 2139,
+      proteinG: 117,
+      fatG: 59,
+      carbsG: 286,
+      floorApplied: false,
+      rateKgPerMonth: 0,
+    },
   },
 ];
 
