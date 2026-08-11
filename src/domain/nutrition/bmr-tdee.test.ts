@@ -6,7 +6,7 @@ import type { ActivityLevel, Sex } from './types';
 describe('calculateBmr', () => {
   it.each([
     ['male' as Sex, 80, 180, 30, 1780],
-    ['female' as Sex, 60, 165, 30, 1320.75],
+    ['female' as Sex, 60, 165, 30, 1320.25],
   ])('%s / weight=%d height=%d age=%d -> bmr=%d', (sex, weightKg, heightCm, ageYears, expected) => {
     expect(calculateBmr(sex, weightKg, heightCm, ageYears)).toBeCloseTo(expected, 4);
   });
