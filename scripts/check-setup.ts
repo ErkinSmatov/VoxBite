@@ -15,6 +15,7 @@
 import postgres from 'postgres';
 import OpenAI from 'openai';
 import { loadEnv } from '../src/config/env.js';
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from '../src/adapters/embeddings/types.js';
 
 interface CheckResult {
   name: string;
@@ -142,14 +143,15 @@ async function checkOpenAI(apiKey: string): Promise<void> {
   const client = new OpenAI({ apiKey });
   try {
     const response = await client.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: EMBEDDING_MODEL,
       input: 'voxbite setup check',
+      dimensions: EMBEDDING_DIMENSIONS,
     });
     const embedding = response.data[0]?.embedding ?? [];
-    if (embedding.length !== 1536) {
+    if (embedding.length !== EMBEDDING_DIMENSIONS) {
       throw new Error(`unexpected embedding length: ${embedding.length}`);
     }
-    console.log('OpenAI embeddings: OK (1536 dimensions)');
+    console.log(`OpenAI embeddings: OK (${EMBEDDING_DIMENSIONS} dimensions)`);
     console.log(
       'Стоимость этого запроса: примерно 4 токена, значительно меньше ' +
         '$0.000001 — проверка практически бесплатна.',

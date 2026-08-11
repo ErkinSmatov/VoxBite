@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createOpenAIEmbedder, type OpenAILike } from './openai-embed.js';
-import { EMBEDDING_DIMENSIONS } from './types.js';
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from './types.js';
 
 function fakeVector(seed: number): number[] {
   return new Array(EMBEDDING_DIMENSIONS).fill(0).map((_, i) => (i === 0 ? seed : 0));
@@ -8,17 +8,19 @@ function fakeVector(seed: number): number[] {
 
 function makeFakeClient(
   handler: (input: string[]) => Promise<{ data: { index: number; embedding: number[] }[] }>,
-): { client: OpenAILike; calls: string[][] } {
+): { client: OpenAILike; calls: string[][]; requests: { model: string; dimensions?: number }[] } {
   const calls: string[][] = [];
+  const requests: { model: string; dimensions?: number }[] = [];
   const client: OpenAILike = {
     embeddings: {
-      create: async ({ input }) => {
+      create: async ({ input, model, dimensions }) => {
         calls.push(input);
+        requests.push({ model, dimensions });
         return handler(input);
       },
     },
   };
-  return { client, calls };
+  return { client, calls, requests };
 }
 
 describe('createOpenAIEmbedder', () => {
@@ -28,6 +30,18 @@ describe('createOpenAIEmbedder', () => {
     const result = await embedder.embed([]);
     expect(result).toEqual([]);
     expect(calls.length).toBe(0);
+  });
+
+  it('sends the configured model and an explicit dimensions parameter on every call (Matryoshka truncation)', async () => {
+    const { client, requests } = makeFakeClient(async (input) => ({
+      data: input.map((_, i) => ({ index: i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await embedder.embed(['rice', 'chicken breast']);
+
+    expect(requests.length).toBe(1);
+    expect(requests[0]?.model).toBe(EMBEDDING_MODEL);
+    expect(requests[0]?.dimensions).toBe(EMBEDDING_DIMENSIONS);
   });
 
   it('batches 250 texts into exactly 3 calls of 100/100/50', async () => {

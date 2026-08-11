@@ -14,7 +14,7 @@ import { EMBEDDING_BATCH_SIZE, EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, type Embed
 
 export interface OpenAILike {
   embeddings: {
-    create(args: { model: string; input: string[] }): Promise<{
+    create(args: { model: string; input: string[]; dimensions?: number }): Promise<{
       data: { index: number; embedding: number[] }[];
     }>;
   };
@@ -99,7 +99,11 @@ async function embedBatchWithRetry(
   let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      const response = await client.embeddings.create({ model: EMBEDDING_MODEL, input: batch });
+      const response = await client.embeddings.create({
+        model: EMBEDDING_MODEL,
+        input: batch,
+        dimensions: EMBEDDING_DIMENSIONS,
+      });
       return response.data;
     } catch (err) {
       lastErr = err;
@@ -161,11 +165,13 @@ export function createOpenAIEmbedder(opts: CreateOpenAIEmbedderOptions = {}): Em
  * Rough pre-flight cost estimate BEFORE spending anything — CLAUDE.md
  * requires explaining paid actions in advance, not after. `tokens ≈
  * chars/4` is the standard rough English-text heuristic; price is
- * $0.02 per 1M tokens for text-embedding-3-small.
+ * $0.13 per 1M tokens for text-embedding-3-large (regardless of the
+ * `dimensions` truncation parameter — OpenAI bills on input tokens, not
+ * output vector size).
  */
 export function estimateEmbeddingCostUsd(texts: string[]): number {
   const totalChars = texts.reduce((sum, t) => sum + t.length, 0);
   const estimatedTokens = totalChars / 4;
-  const usdPerMillionTokens = 0.02;
+  const usdPerMillionTokens = 0.13;
   return (estimatedTokens / 1_000_000) * usdPerMillionTokens;
 }

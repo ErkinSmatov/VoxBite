@@ -139,7 +139,8 @@ async function checkVectorColumn(sql: postgres.Sql): Promise<void> {
     record(
       'Размерность fdc_foods.embedding',
       true,
-      '1536 измерений — именно столько чисел возвращает модель эмбеддингов text-embedding-3-small',
+      '1536 измерений — столько чисел мы просим у модели эмбеддингов text-embedding-3-large ' +
+        'через параметр dimensions (усечение Matryoshka, родной размер модели 3072)',
     );
   } else {
     record(

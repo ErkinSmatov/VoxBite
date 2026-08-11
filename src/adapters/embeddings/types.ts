@@ -10,12 +10,30 @@
  * column recorded on every row exists precisely so a stale/mixed index can
  * be detected (see scripts/index-fdc/load.ts `loadExistingVersions`)
  * instead of silently mixing incompatible vectors in one HNSW index.
+ *
+ * MODEL CHOICE (2026-08, gap-closure from Plan 01-08's verify-matches
+ * checkpoint): `text-embedding-3-small` returned wrong-ingredient matches
+ * for "white rice" (Wild rice x3) and "brown rice" (Wild rice at rank 1-2)
+ * against the real 8,220-row FDC index. An A/B against
+ * `text-embedding-3-large` truncated to 1536 dims (via the OpenAI API's
+ * native `dimensions` parameter — NOT a client-side slice) fixed both
+ * queries while keeping the `vector(1536)` column and its HNSW index
+ * unchanged (pgvector's HNSW caps at 2000 dims, so the untruncated 3072-dim
+ * large model cannot be indexed at all). This is the escalation path
+ * pre-authorized in STACK.md ("if Phase-1 retrieval testing shows
+ * confusable top-3 candidates, move to text-embedding-3-large").
  */
 
 /** Must match the model scripts/check-setup.ts already validates against. */
-export const EMBEDDING_MODEL = 'text-embedding-3-small';
+export const EMBEDDING_MODEL = 'text-embedding-3-large';
 
-/** Must equal the `vector(1536)` dimension in src/db/schema/fdc-foods.ts. */
+/**
+ * Must equal the `vector(1536)` dimension in src/db/schema/fdc-foods.ts.
+ * Also passed as the OpenAI API's `dimensions` request parameter (Matryoshka
+ * truncation) — text-embedding-3-large's native output is 3072-dim, so this
+ * value MUST be sent on every embeddings.create() call, not just used as a
+ * local assumption, or the API returns 3072 numbers and the insert fails.
+ */
 export const EMBEDDING_DIMENSIONS = 1536;
 
 /**

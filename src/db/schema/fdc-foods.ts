@@ -1,9 +1,12 @@
 /**
  * fdc_foods — one row per indexed USDA FoodData Central food item.
  *
- * `embedding` is a real pgvector `vector(1536)` column: 1536 matches
- * OpenAI's `text-embedding-3-small` model, well under pgvector's
- * 2000-dimension HNSW indexing limit. If the embedding model is ever
+ * `embedding` is a real pgvector `vector(1536)` column: 1536 is the
+ * OpenAI `dimensions` truncation requested from `text-embedding-3-large`
+ * (native output 3072-dim, Matryoshka-truncated to 1536 via the API's own
+ * `dimensions` parameter — not a client-side slice), chosen because
+ * 3072 exceeds pgvector's 2000-dimension HNSW indexing limit. If the
+ * embedding model is ever
  * changed, every row must be re-embedded and re-indexed — the
  * `embedding_model_version` column exists precisely so a re-index can
  * detect "these rows were embedded with a different model" instead of

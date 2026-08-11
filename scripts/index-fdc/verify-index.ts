@@ -16,6 +16,7 @@
  */
 import postgres from 'postgres';
 import { loadEnv } from '../../src/config/env.js';
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from '../../src/adapters/embeddings/types.js';
 
 interface CheckResult {
   name: string;
@@ -51,8 +52,12 @@ const FOUNDATION_MIN = 380;
 const FOUNDATION_MAX = 500;
 const SR_LEGACY_MIN = 7_500;
 const SR_LEGACY_MAX = 7_900;
-const EXPECTED_EMBEDDING_MODEL = 'text-embedding-3-small';
-const EXPECTED_DIMENSIONS = 1536;
+// Sourced from the shared embedding config so this check can never drift
+// from the model actually used to build the index (see 01-08 gap-closure:
+// this constant used to be hand-duplicated and would have silently kept
+// validating against the old model after a model switch).
+const EXPECTED_EMBEDDING_MODEL = EMBEDDING_MODEL;
+const EXPECTED_DIMENSIONS = EMBEDDING_DIMENSIONS;
 
 function fmt(n: number): string {
   return n.toLocaleString('en-US');
