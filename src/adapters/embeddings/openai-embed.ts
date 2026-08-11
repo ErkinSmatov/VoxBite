@@ -146,13 +146,55 @@ export function createOpenAIEmbedder(opts: CreateOpenAIEmbedderOptions = {}): Em
         const batch = batches[b] as string[];
         const data = await embedBatchWithRetry(client, batch, b, maxRetries);
         const offset = b * batchSize;
+
+        // Короткий ответ (векторов меньше, чем строк на входе) оставил бы в
+        // `results` дырки со значением undefined. Длина массива при этом не
+        // меняется, поэтому проверка «по длине» дальше по цепочке такую
+        // дырку НЕ ловит — она всплывает уже при записи в базу как невнятная
+        // ошибка «null value in column embedding», когда деньги за
+        // эмбеддинги уже потрачены. Проверяем здесь и сразу.
+        if (data.length !== batch.length) {
+          throw new Error(
+            `OpenAI вернул ${data.length} эмбеддингов на ${batch.length} строк ` +
+              `(пачка ${b + 1} из ${batches.length}). Ничего не записано в базу, ` +
+              `запусти команду ещё раз.`,
+          );
+        }
+
+        const seenIndexes = new Set<number>();
         for (const item of data) {
+          if (!Number.isInteger(item.index) || item.index < 0 || item.index >= batch.length) {
+            throw new Error(
+              `OpenAI вернул номер строки index=${item.index} вне диапазона 0..${batch.length - 1} ` +
+                `(пачка ${b + 1} из ${batches.length}).`,
+            );
+          }
+          if (seenIndexes.has(item.index)) {
+            throw new Error(
+              `OpenAI вернул один и тот же номер строки index=${item.index} дважды ` +
+                `(пачка ${b + 1} из ${batches.length}).`,
+            );
+          }
+          seenIndexes.add(item.index);
+
           if (item.embedding.length !== EMBEDDING_DIMENSIONS) {
             throw new Error(
-              `Embedding dimension mismatch: expected ${EMBEDDING_DIMENSIONS}, got ${item.embedding.length}.`,
+              `Embedding dimension mismatch: expected ${EMBEDDING_DIMENSIONS}, ` +
+                `got ${item.embedding.length} (пачка ${b + 1} из ${batches.length}).`,
             );
           }
           results[offset + item.index] = item.embedding;
+        }
+      }
+
+      // Последний рубеж: ни одной дырки в результате. Обычный `.some()`
+      // пропускает «дырявые» позиции разреженного массива, поэтому
+      // проверяем каждую позицию по индексу явно.
+      for (let i = 0; i < texts.length; i += 1) {
+        if (results[i] === undefined) {
+          throw new Error(
+            `Для строки №${i + 1} из ${texts.length} эмбеддинг не получен. Ничего не записано в базу.`,
+          );
         }
       }
 

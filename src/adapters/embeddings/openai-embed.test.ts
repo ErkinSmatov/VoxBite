@@ -83,6 +83,85 @@ describe('createOpenAIEmbedder', () => {
     await expect(embedder.embed(['x'])).rejects.toThrow(/3/);
   });
 
+  // WR-01: короткий/битый ответ раньше оставлял дырки (undefined) в
+  // результате. Длина массива при этом не менялась, поэтому проверка «по
+  // длине» дальше по цепочке ничего не замечала, и всё падало только на
+  // записи в базу — после того как деньги уже потрачены.
+  it('throws when the API returns FEWER embeddings than texts, instead of leaving undefined holes', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      // возвращаем на один вектор меньше, чем просили
+      data: input.slice(0, input.length - 1).map((_, i) => ({ index: i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await expect(embedder.embed(['a', 'b', 'c'])).rejects.toThrow(/2 эмбеддингов на 3 строк/);
+  });
+
+  it('throws when the API returns MORE embeddings than texts', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      data: [...input, 'extra'].map((_, i) => ({ index: i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await expect(embedder.embed(['a', 'b'])).rejects.toThrow(/3 эмбеддингов на 2 строк/);
+  });
+
+  it('names the failing batch number when a later batch comes back short', async () => {
+    let call = 0;
+    const { client } = makeFakeClient(async (input) => {
+      call += 1;
+      const data = input.map((_, i) => ({ index: i, embedding: fakeVector(i) }));
+      return { data: call === 3 ? data.slice(0, 10) : data };
+    });
+    const embedder = createOpenAIEmbedder({ client });
+    const texts = new Array(250).fill(0).map((_, i) => `food ${i}`);
+    await expect(embedder.embed(texts)).rejects.toThrow(/пачка 3 из 3/);
+  });
+
+  it('throws on an out-of-range index instead of writing into another batch slot', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      data: input.map((_, i) => ({ index: i === 0 ? 999 : i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await expect(embedder.embed(['a', 'b'])).rejects.toThrow(/index=999 вне диапазона/);
+  });
+
+  it('throws on a negative index', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      data: input.map((_, i) => ({ index: i === 0 ? -1 : i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await expect(embedder.embed(['a', 'b'])).rejects.toThrow(/index=-1 вне диапазона/);
+  });
+
+  it('throws when the API repeats the same index twice (which would leave one text unembedded)', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      data: input.map((_, i) => ({ index: i === 1 ? 0 : i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await expect(embedder.embed(['a', 'b'])).rejects.toThrow(/один и тот же номер строки/);
+  });
+
+  it('checks the dimension of EVERY returned embedding, not just the first', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      data: input.map((_, i) => ({
+        index: i,
+        embedding: i === 1 ? [0.1, 0.2] : fakeVector(i),
+      })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    await expect(embedder.embed(['a', 'b'])).rejects.toThrow(/1536/);
+  });
+
+  it('returns a dense array with no undefined holes on a healthy response', async () => {
+    const { client } = makeFakeClient(async (input) => ({
+      data: input.map((_, i) => ({ index: i, embedding: fakeVector(i) })),
+    }));
+    const embedder = createOpenAIEmbedder({ client });
+    const result = await embedder.embed(['a', 'b', 'c']);
+    expect(result.length).toBe(3);
+    expect(result.every((v) => Array.isArray(v) && v.length === EMBEDDING_DIMENSIONS)).toBe(true);
+    expect(Object.keys(result).length).toBe(3); // ни одной «дырявой» позиции
+  });
+
   it('retries a 429 rate_limit_exceeded up to maxRetries and succeeds on a later attempt', async () => {
     let attempts = 0;
     const { client } = makeFakeClient(async (input) => {
