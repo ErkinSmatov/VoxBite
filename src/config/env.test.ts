@@ -17,6 +17,8 @@ const ORIGINAL_ENV = { ...process.env };
 function clearRequiredEnv() {
   delete process.env.DATABASE_URL;
   delete process.env.OPENAI_API_KEY;
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.BETA_ALLOWLIST;
 }
 
 beforeEach(() => {
@@ -35,19 +37,21 @@ describe('env.ts', () => {
     await expect(import('./env')).resolves.toBeTruthy();
   });
 
-  it('REQUIRED_ENV_KEYS matches exactly the keys declared in .env.example', async () => {
-    const { REQUIRED_ENV_KEYS } = await import('./env');
-    expect(REQUIRED_ENV_KEYS).toEqual(['DATABASE_URL', 'OPENAI_API_KEY']);
+  it('REQUIRED_ENV_KEYS and OPTIONAL_ENV_KEYS together match exactly the keys declared in .env.example', async () => {
+    const { REQUIRED_ENV_KEYS, OPTIONAL_ENV_KEYS } = await import('./env');
+    expect(REQUIRED_ENV_KEYS).toEqual(['DATABASE_URL', 'OPENAI_API_KEY', 'TELEGRAM_BOT_TOKEN']);
+    expect(OPTIONAL_ENV_KEYS).toEqual(['BETA_ALLOWLIST']);
 
     const examplePath = path.resolve(import.meta.dirname, '../../.env.example');
     const exampleContent = readFileSync(examplePath, 'utf8');
     const declaredKeys = [...exampleContent.matchAll(/^([A-Z_]+)=/gm)].map((m) => m[1]);
-    expect(declaredKeys.sort()).toEqual([...REQUIRED_ENV_KEYS].sort());
+    expect(declaredKeys.sort()).toEqual([...REQUIRED_ENV_KEYS, ...OPTIONAL_ENV_KEYS].sort());
   });
 
   it('loadEnv() caches and returns the same object instance on repeated calls', async () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     const first = loadEnv();
@@ -58,6 +62,7 @@ describe('env.ts', () => {
   it('loadEnv() throws a named-key, .env.example-referencing error when a required var is missing', async () => {
     clearRequiredEnv();
     process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     expect(() => loadEnv()).toThrowError(/DATABASE_URL/);
@@ -68,6 +73,7 @@ describe('env.ts', () => {
   it('loadEnv() returns DATABASE_URL and OPENAI_API_KEY as non-empty strings when both are set', async () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     const result = loadEnv();
@@ -75,5 +81,37 @@ describe('env.ts', () => {
     expect(result.DATABASE_URL.length).toBeGreaterThan(0);
     expect(typeof result.OPENAI_API_KEY).toBe('string');
     expect(result.OPENAI_API_KEY.length).toBeGreaterThan(0);
+  });
+
+  it('loadEnv() throws an error naming TELEGRAM_BOT_TOKEN when the token is unset', async () => {
+    clearRequiredEnv();
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    const { loadEnv, resetEnvCacheForTests } = await import('./env');
+    resetEnvCacheForTests();
+    expect(() => loadEnv()).toThrowError(/TELEGRAM_BOT_TOKEN/);
+  });
+
+  it('loadEnv() returns BETA_ALLOWLIST as an empty string when the variable is entirely absent', async () => {
+    clearRequiredEnv();
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    const { loadEnv, resetEnvCacheForTests } = await import('./env');
+    resetEnvCacheForTests();
+    const result = loadEnv();
+    expect(result.BETA_ALLOWLIST).toBe('');
+  });
+
+  it('loadEnv() returns BETA_ALLOWLIST as an empty string when the variable is set to an empty string', async () => {
+    clearRequiredEnv();
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.BETA_ALLOWLIST = '';
+    const { loadEnv, resetEnvCacheForTests } = await import('./env');
+    resetEnvCacheForTests();
+    const result = loadEnv();
+    expect(result.BETA_ALLOWLIST).toBe('');
   });
 });
