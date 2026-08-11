@@ -69,6 +69,64 @@ describe('parseFoundationFoods', () => {
   });
 });
 
+// WR-02: Number('') === 0 в JS, поэтому пустой fdc_id раньше проходил
+// проверку и становился id = 0. `fdc_id` — ключ, по которому идёт upsert,
+// так что две битые строки молча схлопывались бы в одну запись.
+describe('parseFoundationFoods: проверка fdc_id', () => {
+  async function parseCsvBody(rows: string): Promise<ReturnType<typeof parseFoundationFoods>> {
+    const os = await import('node:os');
+    const fs = await import('node:fs');
+    const csv = '"fdc_id","data_type","description","food_category_id","publication_date"\n' + rows;
+    const tmpFile = path.join(os.tmpdir(), `fdc-id-check-${Date.now()}-${Math.random()}.csv`);
+    fs.writeFileSync(tmpFile, csv);
+    try {
+      return await parseFoundationFoods(tmpFile);
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  }
+
+  it.each([
+    ['пустой', ''],
+    ['только пробелы', '   '],
+    ['не число', 'abc'],
+    ['дробное', '12.5'],
+    ['экспоненциальная запись', '1e3'],
+    ['ноль', '0'],
+    ['отрицательное', '-5'],
+  ])('отвергает строку с fdc_id (%s) вместо превращения её в id = 0', async (_name, badId) => {
+    await expect(
+      parseCsvBody(`"${badId}","foundation_food","Beans, snap, green, raw","11","2019-04-01"\n`),
+    ).rejects.toThrow(/is not a positive integer/);
+  });
+
+  it('две строки с пустым fdc_id не схлопываются в одну запись с id = 0 — парсер падает', async () => {
+    await expect(
+      parseCsvBody(
+        '"","foundation_food","Первая битая строка","11","2019-04-01"\n' +
+          '"","foundation_food","Вторая битая строка","11","2019-04-01"\n',
+      ),
+    ).rejects.toThrow(/is not a positive integer/);
+  });
+
+  it('нормальный числовой fdc_id по-прежнему проходит', async () => {
+    const result = await parseCsvBody(
+      '"2000001","foundation_food","Beans, snap, green, raw","11","2019-04-01"\n',
+    );
+    expect(result.foods).toEqual([
+      { fdcId: 2000001, description: 'Beans, snap, green, raw', source: 'foundation_food' },
+    ]);
+  });
+
+  it('битый fdc_id в ПРОПУЩЕННОЙ по data_type строке не мешает — она и так не попадает в индекс', async () => {
+    const result = await parseCsvBody(
+      '"","market_acquisition","HUMMUS, SABRA CLASSIC","16","2019-04-01"\n' +
+        '"2000002","foundation_food","Hummus, commercial","16","2019-04-01"\n',
+    );
+    expect(result.foods.map((f) => f.fdcId)).toEqual([2000002]);
+  });
+});
+
 describe('parseSrLegacyFoods', () => {
   it('keeps every row and stamps source sr_legacy_food', async () => {
     const result = await parseSrLegacyFoods(srLegacyFixture);
