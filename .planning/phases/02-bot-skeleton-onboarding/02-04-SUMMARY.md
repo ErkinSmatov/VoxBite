@@ -159,3 +159,7 @@ None — `TELEGRAM_BOT_TOKEN` and `BETA_ALLOWLIST` were already set up in Plan 0
 
 *Phase: 02-bot-skeleton-onboarding*
 *Completed: 2026-08-11*
+
+## Self-Check: PASSED
+
+All 7 referenced source files and this SUMMARY were confirmed present on disk; all 5 task commit hashes (`a897abb`, `b272e6f`, `4fa4681`, `a7c70c9`, `94260c4`) and this SUMMARY's own commit (`1db8fe1`) were confirmed present in `git log --oneline --all`.
