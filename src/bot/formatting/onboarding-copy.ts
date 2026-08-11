@@ -45,10 +45,39 @@ export function targetsWithDisclaimerMessage(t: NutritionTargets): string {
   return lines.join('\n');
 }
 
+/**
+ * CR-03 — the words that get a user out of the questionnaire.
+ *
+ * While a conversation is active it consumes the update and never calls
+ * downstream middleware, so `bot.command('cancel', …)` is unreachable from
+ * inside it: the conversation has to recognise the word itself. `/cancel`
+ * is the discoverable form (it is what the hint tells people to send);
+ * «отмена» is here because a Russian-speaking user who wants out is at
+ * least as likely to type the word as the slash-command, and no onboarding
+ * step ever expects either of these as a legitimate answer.
+ *
+ * Matching is case-insensitive and trims surrounding whitespace.
+ */
+export const CANCEL_KEYWORDS = ['/cancel', 'отмена'] as const;
+
+export function isCancelKeyword(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  return (CANCEL_KEYWORDS as readonly string[]).includes(normalized);
+}
+
 export const questionCopy = {
   greeting:
     'Привет! Я VoxBite — посчитаю твои целевые калории и БЖУ и буду вести ' +
     'дневник питания по голосовым сообщениям. Сначала пройдём короткий опрос.',
+  // CR-03: sent once at the start of the conversation, before the first
+  // question, because that is the only point every entry path passes through
+  // (/start, the «Пройти анкету заново» button, and «Изменить» all land
+  // here). A user who never sees the escape hatch is still trapped.
+  cancelHint: 'Если захочешь прервать опрос — отправь /cancel или напиши «отмена».',
+  cancelled:
+    'Опрос отменён, ничего не сохранено. Отправь /start, когда захочешь пройти его заново.',
+  // Reply for /cancel sent when no questionnaire is running.
+  nothingToCancel: 'Сейчас нечего отменять. Отправь /start, чтобы пройти опрос.',
   sex: 'Укажи свой пол:',
   age: 'Сколько тебе лет? Напиши число, например 29.',
   height: 'Какой у тебя рост в сантиметрах? Напиши число, например 178.',

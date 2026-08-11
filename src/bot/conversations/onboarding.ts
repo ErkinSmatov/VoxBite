@@ -45,7 +45,11 @@ import type { Conversation } from '@grammyjs/conversations';
 import type { Db } from '../../db/client.js';
 import { calculateNutritionTargets } from '../../domain/nutrition/index.js';
 import type { BotContext } from '../bot.js';
-import { targetsWithDisclaimerMessage, questionCopy } from '../formatting/onboarding-copy.js';
+import {
+  targetsWithDisclaimerMessage,
+  isCancelKeyword,
+  questionCopy,
+} from '../formatting/onboarding-copy.js';
 import {
   CONFIRM_CALLBACK,
   RESTART_CALLBACK,
@@ -71,6 +75,32 @@ import { ack } from '../telegram/ack.js';
 export const ONBOARDING_CONVERSATION_ID = 'onboarding';
 
 /**
+ * CR-03 — an abandoned questionnaire must expire on its own.
+ *
+ * Conversation state lives in `bot_sessions` under `conv:<chatId>`, so before
+ * this cap a user who walked away at "рост в сантиметрах" was answered with
+ * the height question forever, across restarts, until the owner deleted a
+ * Postgres row by hand. With the cap, the plugin gives up on a wait that has
+ * gone unanswered for a day and halts the conversation, clearing that row.
+ *
+ * A day is long enough that nobody loses a questionnaire they are actually
+ * filling in (people put their phone down mid-flow), and short enough that a
+ * row holding partially-entered sex/age/height/weight does not linger
+ * indefinitely — which also chips away at WR-12's retention problem.
+ */
+export const ONBOARDING_MAX_WAIT_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The exact config `bot.ts` registers this conversation with. Exported as a
+ * value rather than spelled out at the call site so the id and the timeout
+ * are testable without booting a bot.
+ */
+export const ONBOARDING_CONVERSATION_CONFIG = {
+  id: ONBOARDING_CONVERSATION_ID,
+  maxMillisecondsToWait: ONBOARDING_MAX_WAIT_MS,
+} as const;
+
+/**
  * Local alias — Plan 06 registers this against the real BotContext for both
  * type parameters (`Conversation<OC, C>`): the outer context (what enters
  * the conversation) and the inner context (what every `waitFor` resolves
@@ -80,12 +110,68 @@ export const ONBOARDING_CONVERSATION_ID = 'onboarding';
 type OnboardingConversation = Conversation<BotContext, BotContext>;
 
 /**
- * Button step: ask `question`, wait for a `callback_query:data` update, and
- * loop until the callback decodes to a known option value. A text message
- * arriving during this step re-sends the same question (via `otherwise`)
- * instead of being silently ignored. A decodable-but-unknown value (a
- * forged or stale button press, T-02-16) also re-sends the question and
- * keeps waiting — it is never written into the answers object.
+ * CR-03 — the one place the conversation exits on the user's request.
+ *
+ * `conversation.halt()` is the plugin's own supported exit: it ends the
+ * conversation and clears its persisted `conv:<chatId>` state. Nothing here
+ * touches the storage adapter by hand. It returns `Promise<never>`, so
+ * control never comes back from this function when the word matched.
+ */
+async function cancelIfRequested(
+  conversation: OnboardingConversation,
+  ctx: BotContext,
+  text: string,
+): Promise<void> {
+  if (!isCancelKeyword(text)) {
+    return;
+  }
+  await ctx.reply(questionCopy.cancelled);
+  await conversation.halt();
+}
+
+/**
+ * Waits for a button press, and returns its raw `callback_data` (never
+ * decoded here — decoding stays an allowlist lookup at the call site).
+ *
+ * Text arriving during a button step is what makes this more than a bare
+ * `waitFor`: while a conversation is active it consumes the update and never
+ * calls downstream middleware, so a `/cancel` typed at the sex question would
+ * otherwise be swallowed and the question re-sent forever (CR-03). Text is
+ * therefore waited for alongside the callback query, checked for the cancel
+ * word, and only then treated as "wrong kind of answer, re-ask".
+ */
+async function waitForButtonOrCancel(
+  conversation: OnboardingConversation,
+  ctx: BotContext,
+  reask: () => Promise<unknown>,
+): Promise<string | undefined> {
+  for (;;) {
+    const update = await conversation.waitFor(['callback_query:data', 'message:text'], {
+      otherwise: () => reask(),
+    });
+
+    const data = update.callbackQuery?.data;
+    if (data !== undefined) {
+      await ack(update);
+      return data;
+    }
+
+    const text = update.message?.text;
+    if (text !== undefined) {
+      await cancelIfRequested(conversation, ctx, text);
+    }
+    await reask();
+  }
+}
+
+/**
+ * Button step: ask `question`, wait for a button press, and loop until the
+ * callback decodes to a known option value. A text message arriving during
+ * this step re-sends the same question instead of being silently ignored
+ * (unless it is the cancel word — see `waitForButtonOrCancel`). A
+ * decodable-but-unknown value (a forged or stale button press, T-02-16) also
+ * re-sends the question and keeps waiting — it is never written into the
+ * answers object.
  */
 async function askOption<T extends string>(
   conversation: OnboardingConversation,
@@ -98,11 +184,8 @@ async function askOption<T extends string>(
   await reask();
 
   for (;;) {
-    const update = await conversation.waitFor('callback_query:data', {
-      otherwise: (otherCtx) => otherCtx.reply(question, { reply_markup: buildOptionKeyboard(options, perRow) }),
-    });
-    await ack(update);
-    const decoded = decodeOption(options, update.callbackQuery.data);
+    const data = await waitForButtonOrCancel(conversation, ctx, reask);
+    const decoded = decodeOption(options, data);
     if (decoded !== undefined) {
       return decoded;
     }
@@ -121,11 +204,8 @@ async function askRate(conversation: OnboardingConversation, ctx: BotContext): P
   await reask();
 
   for (;;) {
-    const update = await conversation.waitFor('callback_query:data', {
-      otherwise: (otherCtx) => otherCtx.reply(questionCopy.rate, { reply_markup: buildRateKeyboard() }),
-    });
-    await ack(update);
-    const decoded = decodeRate(update.callbackQuery.data);
+    const data = await waitForButtonOrCancel(conversation, ctx, reask);
+    const decoded = decodeRate(data);
     if (decoded !== undefined && (RATE_PRESETS_KG_PER_MONTH as readonly number[]).includes(decoded)) {
       return decoded;
     }
@@ -140,6 +220,10 @@ async function askRate(conversation: OnboardingConversation, ctx: BotContext): P
  * waiting — no attempt limit, the user may retry indefinitely. A button
  * press arriving during this step re-sends the question instead of being
  * silently ignored.
+ *
+ * The unbounded retry loop is only safe because of the cancel check below
+ * (CR-03): otherwise a user who cannot produce a parseable number, or who
+ * simply changed their mind, has no way out of it at all.
  */
 async function askNumber(
   conversation: OnboardingConversation,
@@ -153,7 +237,9 @@ async function askNumber(
     const update = await conversation.waitFor('message:text', {
       otherwise: (otherCtx) => otherCtx.reply(question),
     });
-    const result = parse(update.message.text);
+    const text = update.message.text;
+    await cancelIfRequested(conversation, ctx, text);
+    const result = parse(text);
     if (result.ok) {
       return result.value;
     }
@@ -172,6 +258,13 @@ export async function onboardingConversation(
   ctx: BotContext,
   db: Db,
 ): Promise<void> {
+  // CR-03: announce the escape hatch once, before the first question. This is
+  // the only point every entry path passes through — `/start` for a new user,
+  // the «Пройти анкету заново» button for a returning one, and «Изменить»
+  // from the confirm screen all arrive here — so it is the only place the
+  // hint is guaranteed to be seen.
+  await ctx.reply(questionCopy.cancelHint);
+
   // Изменить (ONBOARD-05) restarts the whole questionnaire from here,
   // writing nothing — a plain outer loop, since the installed API exposes
   // no `reenter()` method (see module doc comment / Assumption A3).
@@ -237,11 +330,9 @@ export async function onboardingConversation(
 
       let decision: string | undefined;
       while (decision === undefined) {
-        const update = await conversation.waitFor('callback_query:data', {
-          otherwise: (otherCtx) => otherCtx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() }),
-        });
-        await ack(update);
-        const data = update.callbackQuery.data;
+        const data = await waitForButtonOrCancel(conversation, ctx, () =>
+          ctx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() }),
+        );
         if (data === CONFIRM_CALLBACK || data === RESTART_CALLBACK) {
           decision = data;
         } else {

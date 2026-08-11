@@ -11,8 +11,13 @@
  * through, so a unit test of any single helper cannot catch them.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { questionCopy } from '../formatting/onboarding-copy.js';
-import { onboardingConversation } from './onboarding.js';
+import { CANCEL_KEYWORDS, questionCopy } from '../formatting/onboarding-copy.js';
+import {
+  ONBOARDING_CONVERSATION_CONFIG,
+  ONBOARDING_CONVERSATION_ID,
+  ONBOARDING_MAX_WAIT_MS,
+  onboardingConversation,
+} from './onboarding.js';
 
 type ScriptItem =
   | { kind: 'callback'; data: string; ackRejects?: boolean }
@@ -158,6 +163,88 @@ describe('onboardingConversation — happy path', () => {
     expect(result.exhausted).toBe(false);
     expect(saved).toHaveLength(1);
     expect(replies.at(-1)).toBe(questionCopy.saved);
+  });
+});
+
+describe('onboardingConversation — CR-03: the escape hatch', () => {
+  // Before the fix there was no way out at all: commands are unreachable while
+  // a conversation is active, `askNumber` was an unbounded loop with no cancel
+  // keyword, and the state survives restarts — so a user who walked away at
+  // "рост в сантиметрах" was answered with the height question forever.
+  it('tells the user about /cancel before the first question', async () => {
+    const { db } = makeFakeDb();
+    const { run, replies } = makeHarness([cb('sex:male')]);
+
+    await run(db);
+
+    expect(replies[0]).toBe(questionCopy.cancelHint);
+    expect(replies.indexOf(questionCopy.cancelHint)).toBeLessThan(replies.indexOf(questionCopy.sex));
+  });
+
+  it.each(CANCEL_KEYWORDS)('«%s» during a text step halts and saves nothing', async (keyword) => {
+    const { db, saved } = makeFakeDb();
+    // sex answered, then the cancel word at the age question.
+    const { run, replies } = makeHarness([cb('sex:male'), txt(keyword)]);
+
+    const result = await run(db);
+
+    expect(result.halted).toBe(true);
+    expect(replies.at(-1)).toBe(questionCopy.cancelled);
+    expect(saved).toHaveLength(0);
+  });
+
+  it('cancels during a BUTTON step, where the word is not a valid answer either', async () => {
+    const { db, saved } = makeFakeDb();
+    const { run, replies } = makeHarness([txt('/cancel')]);
+
+    const result = await run(db);
+
+    expect(result.halted).toBe(true);
+    expect(replies.at(-1)).toBe(questionCopy.cancelled);
+    expect(saved).toHaveLength(0);
+  });
+
+  it('cancels from the confirm screen, after every answer is collected', async () => {
+    const { db, saved } = makeFakeDb();
+    const { run, replies } = makeHarness([...FULL_ANSWERS, txt('/cancel')]);
+
+    const result = await run(db);
+
+    expect(result.halted).toBe(true);
+    expect(replies.at(-1)).toBe(questionCopy.cancelled);
+    expect(saved).toHaveLength(0);
+    expect(replies).not.toContain(questionCopy.saved);
+  });
+
+  it('matches the cancel word case-insensitively and with stray whitespace', async () => {
+    const { db } = makeFakeDb();
+    const { run, replies } = makeHarness([cb('sex:male'), txt('  ОТМЕНА  ')]);
+
+    const result = await run(db);
+
+    expect(result.halted).toBe(true);
+    expect(replies.at(-1)).toBe(questionCopy.cancelled);
+  });
+
+  it('does not treat an ordinary wrong answer as a cancel', async () => {
+    const { db } = makeFakeDb();
+    const { run, replies } = makeHarness([cb('sex:male'), txt('abc'), txt('29'), txt('178')]);
+
+    const result = await run(db);
+
+    // The script runs out at the weight question — the conversation is still
+    // alive, it just re-asked after the unparseable "abc".
+    expect(result.halted).toBe(false);
+    expect(result.exhausted).toBe(true);
+    expect(replies).not.toContain(questionCopy.cancelled);
+    expect(replies).toContain(questionCopy.weight);
+  });
+
+  it('is registered with a bounded wait so an abandoned run self-clears', () => {
+    expect(ONBOARDING_CONVERSATION_CONFIG.id).toBe(ONBOARDING_CONVERSATION_ID);
+    expect(ONBOARDING_CONVERSATION_CONFIG.maxMillisecondsToWait).toBe(ONBOARDING_MAX_WAIT_MS);
+    expect(ONBOARDING_MAX_WAIT_MS).toBeGreaterThan(0);
+    expect(ONBOARDING_MAX_WAIT_MS).toBeLessThanOrEqual(24 * 60 * 60 * 1000);
   });
 });
 

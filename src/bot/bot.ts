@@ -22,7 +22,12 @@ import { createAllowlistMiddleware } from './middleware/allowlist.js';
 import { createPgStorageAdapter } from './storage/pg-storage-adapter.js';
 import { whoamiHandler } from './commands/whoami.js';
 import { createStartHandler, RESTART_ONBOARDING_CALLBACK } from './commands/start.js';
-import { onboardingConversation, ONBOARDING_CONVERSATION_ID } from './conversations/onboarding.js';
+import {
+  onboardingConversation,
+  ONBOARDING_CONVERSATION_ID,
+  ONBOARDING_CONVERSATION_CONFIG,
+} from './conversations/onboarding.js';
+import { questionCopy } from './formatting/onboarding-copy.js';
 import { ack } from './telegram/ack.js';
 import { createErrorHandler } from './error-handler.js';
 
@@ -73,16 +78,27 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
   // conversations plugin (step 3) and before any command handler, closed
   // over `deps.db` so the Plan 05 function stays a plain dependency
   // injection, not a `ctx`-read (per its own module doc comment).
+  //
+  // ONBOARDING_CONVERSATION_CONFIG carries the id plus `maxMillisecondsToWait`
+  // (CR-03): without a cap, an abandoned questionnaire keeps its
+  // `conv:<chatId>` row forever and answers every later message with the
+  // question the user walked away from, across restarts.
   bot.use(
     createConversation<BotContext, BotContext>(
       (conversation, ctx) => onboardingConversation(conversation, ctx, deps.db),
-      ONBOARDING_CONVERSATION_ID,
+      ONBOARDING_CONVERSATION_CONFIG,
     ),
   );
 
   // 5. Handlers.
   bot.command('whoami', whoamiHandler);
   bot.command('start', createStartHandler(deps.db));
+  // /cancel is handled INSIDE the conversation (a running conversation
+  // consumes the update and never reaches this handler). This registration
+  // exists so the command is not a dead end when nothing is running (CR-03).
+  bot.command('cancel', async (ctx) => {
+    await ctx.reply(questionCopy.nothingToCancel);
+  });
   bot.callbackQuery(RESTART_ONBOARDING_CALLBACK, async (ctx) => {
     // `ack`, not a bare answerCallbackQuery (CR-02): the "Пройти анкету
     // заново" button sits in the user's history forever, so tapping it a day

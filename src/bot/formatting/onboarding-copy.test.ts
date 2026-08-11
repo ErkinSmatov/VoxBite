@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { NutritionTargets } from '../../domain/nutrition/index.js';
-import { DISCLAIMER_TEXT, questionCopy, targetsWithDisclaimerMessage } from './onboarding-copy';
+import {
+  CANCEL_KEYWORDS,
+  DISCLAIMER_TEXT,
+  isCancelKeyword,
+  questionCopy,
+  targetsWithDisclaimerMessage,
+} from './onboarding-copy';
 
 const BASE_TARGETS: NutritionTargets = {
   bmr: 1700,
@@ -67,4 +73,38 @@ describe('questionCopy', () => {
   it.each(['age', 'height', 'weight'] as const)('%s question contains a concrete example number', (key) => {
     expect(questionCopy[key]).toMatch(/[0-9]/);
   });
+
+  // CR-03: the hint is useless if it does not name a word the parser accepts.
+  it('the cancel hint names at least one keyword that actually cancels', () => {
+    const named = CANCEL_KEYWORDS.filter((keyword) => questionCopy.cancelHint.includes(keyword));
+    expect(named.length).toBeGreaterThan(0);
+  });
+
+  it('the cancelled message says nothing was saved and how to start over', () => {
+    expect(questionCopy.cancelled).toMatch(/не сохранено/);
+    expect(questionCopy.cancelled).toContain('/start');
+  });
+
+  it('the save-failure message says the answers are still there', () => {
+    expect(questionCopy.saveFailed).toMatch(/не получилось сохранить/i);
+    expect(questionCopy.saveFailed).toContain('Всё верно');
+  });
+});
+
+describe('isCancelKeyword', () => {
+  it.each(CANCEL_KEYWORDS)('accepts «%s»', (keyword) => {
+    expect(isCancelKeyword(keyword)).toBe(true);
+  });
+
+  it('ignores case and surrounding whitespace', () => {
+    expect(isCancelKeyword('  ОТМЕНА ')).toBe(true);
+    expect(isCancelKeyword('/CANCEL')).toBe(true);
+  });
+
+  it.each(['29', '178', '72.5', 'отменить подписку', 'cancel', ''])(
+    'rejects «%s», which is not a cancel word',
+    (text) => {
+      expect(isCancelKeyword(text)).toBe(false);
+    },
+  );
 });
