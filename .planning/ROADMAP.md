@@ -88,7 +88,7 @@ Plans:
 - [x] 02-05-PLAN.md — inline keyboards, idempotent users upsert, the seven-step onboarding conversation
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-06-PLAN.md — /start with the already-onboarded branch, conversation registration, manual checklist document
+- [x] 02-06-PLAN.md — /start with the already-onboarded branch, conversation registration, manual checklist document
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-07-PLAN.md — owner sign-off on the disclaimer wording and the manual checklist walkthrough
