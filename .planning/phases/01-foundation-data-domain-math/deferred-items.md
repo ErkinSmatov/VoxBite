@@ -4,7 +4,17 @@ Issues discovered during execution that are out of scope for the current
 plan's files (per executor scope-boundary rules) and therefore not
 auto-fixed.
 
-## 1. `src/config/env.test.ts` — "missing required key" test fails once a real `.env` exists
+## 1. ~~`src/config/env.test.ts` — "missing required key" test fails once a real `.env` exists~~ — RESOLVED
+
+**Status: RESOLVED by the orchestrator at the post-Wave-3 integration gate.**
+Fixed by stubbing `dotenv-safe` with `vi.mock` at the top of
+`src/config/env.test.ts`, so `loadEnv()`'s validation is exercised against a
+`process.env` each test controls explicitly, with no disk read. Verified
+92/92 passing both with `.env` present and with it temporarily moved aside —
+the suite is now machine-state-independent. Production code was not changed.
+
+Original report retained below for the record.
+
 
 - **Discovered during:** Plan 01-03, Task 1 (running `npm test` after adding db schema files)
 - **File:** `src/config/env.test.ts` (owned by Plan 01, not touched by Plan 03)

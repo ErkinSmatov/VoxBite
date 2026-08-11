@@ -1,6 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+
+// These tests exercise loadEnv()'s validation logic against a process.env that
+// each case controls explicitly. Without this mock, dotenvSafe.config() reads
+// the developer's real .env from disk and re-populates the very keys a test
+// just deleted — so the "missing key" case only failed correctly on machines
+// that happened to have no .env yet. Stubbing the file-loading side keeps these
+// tests hermetic and machine-independent.
+vi.mock('dotenv-safe', () => ({
+  default: { config: () => ({ parsed: {} }) },
+}));
 
 const ORIGINAL_ENV = { ...process.env };
 
