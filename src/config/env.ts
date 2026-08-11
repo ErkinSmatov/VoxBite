@@ -5,12 +5,23 @@ import dotenvSafe from 'dotenv-safe';
  * sync with the `KEY=` lines declared in `.env.example` — the test suite
  * for this module asserts that equality.
  */
-export const REQUIRED_ENV_KEYS = ['DATABASE_URL', 'OPENAI_API_KEY'] as const;
+export const REQUIRED_ENV_KEYS = ['DATABASE_URL', 'OPENAI_API_KEY', 'TELEGRAM_BOT_TOKEN'] as const;
 
 export interface AppEnv {
   DATABASE_URL: string;
   OPENAI_API_KEY: string;
+  TELEGRAM_BOT_TOKEN: string;
+  BETA_ALLOWLIST: string; // '' is legal and meaningful: nobody is allowed
 }
+
+/**
+ * Env keys that must be declared in `.env.example` (so the owner sees them
+ * and knows they exist) but are legal when empty. `BETA_ALLOWLIST` empty
+ * means nobody is allowed (D-04, fail-closed) — the required state for the
+ * first run described in D-06. These keys must never flow into the
+ * `missingKeys` check below.
+ */
+export const OPTIONAL_ENV_KEYS = ['BETA_ALLOWLIST'] as const;
 
 let cachedEnv: AppEnv | undefined;
 
@@ -62,6 +73,8 @@ export function loadEnv(): AppEnv {
   cachedEnv = {
     DATABASE_URL: process.env.DATABASE_URL as string,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY as string,
+    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN as string,
+    BETA_ALLOWLIST: process.env.BETA_ALLOWLIST ?? '',
   };
 
   return cachedEnv;
