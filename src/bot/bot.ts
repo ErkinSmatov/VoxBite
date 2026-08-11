@@ -24,6 +24,7 @@ import { whoamiHandler } from './commands/whoami.js';
 import { createStartHandler, RESTART_ONBOARDING_CALLBACK } from './commands/start.js';
 import { onboardingConversation, ONBOARDING_CONVERSATION_ID } from './conversations/onboarding.js';
 import { ack } from './telegram/ack.js';
+import { createErrorHandler } from './error-handler.js';
 
 export interface SessionData {
   // Empty for now — conversations own their own state via the storage
@@ -91,12 +92,12 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
     await ctx.conversation.enter(ONBOARDING_CONVERSATION_ID);
   });
 
-  // 6. Middleware-error handler — log a short Russian line plus the error
-  // message only, never the whole update object (it contains user message
-  // text) and never the token.
-  bot.catch((err) => {
-    console.log(`Ошибка обработчика: ${err.message}`);
-  });
+  // 6. Middleware-error handler — logs a short Russian line describing the
+  // error only, never the whole update object (it contains user message text,
+  // which is health data here) and never the token, and then tells the user
+  // in Russian that the failure was ours (CR-01). See error-handler.ts for
+  // the logging invariant.
+  bot.catch(createErrorHandler());
 
   return bot;
 }

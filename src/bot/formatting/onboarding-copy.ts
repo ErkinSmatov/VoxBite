@@ -58,5 +58,12 @@ export const questionCopy = {
   rate: 'С какой скоростью хочешь двигаться к цели?',
   timezone: 'В каком часовом поясе ты находишься?',
   saved: 'Готово! Твои цели рассчитаны и сохранены.',
+  // CR-01: shown when the write failed. It must say plainly that nothing was
+  // saved (the user must never walk away believing their profile is stored)
+  // and that their answers are still here, so pressing the button again is
+  // worth doing.
+  saveFailed:
+    'Не получилось сохранить — база данных не ответила. Твои ответы никуда ' +
+    'не делись: нажми «Всё верно» ещё раз.',
   restarting: 'Начинаем заново — предыдущие ответы не сохранены.',
 };

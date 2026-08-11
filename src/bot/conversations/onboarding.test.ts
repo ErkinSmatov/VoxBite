@@ -206,3 +206,74 @@ describe('onboardingConversation — CR-02: stale callback queries', () => {
     expect(acks.every((a) => a.rejected)).toBe(true);
   });
 });
+
+describe('onboardingConversation — CR-01: a failed save must not destroy the answers', () => {
+  // Before the fix, a rejected `saveOnboardedUser` threw out of the
+  // conversation: the plugin exited it, deleted the replay state, and all
+  // seven answers were gone with no message to the user at all.
+  it('reports the failure and keeps the confirm screen so a retry succeeds', async () => {
+    const { db, saved } = makeFakeDb(1);
+    const { run, replies } = makeHarness([...FULL_ANSWERS, cb('confirm:yes'), cb('confirm:yes')]);
+
+    const result = await run(db);
+
+    expect(result.exhausted).toBe(false);
+    expect(replies).toContain(questionCopy.saveFailed);
+    expect(replies.at(-1)).toBe(questionCopy.saved);
+    expect(saved).toHaveLength(1);
+  });
+
+  it('does not re-ask any of the seven questions after a failed save', async () => {
+    const { db } = makeFakeDb(1);
+    const { run, replies } = makeHarness([...FULL_ANSWERS, cb('confirm:yes'), cb('confirm:yes')]);
+
+    await run(db);
+
+    // Each question was asked exactly once — a retry that restarted the
+    // questionnaire (or fell through to the outer restart loop) would ask
+    // them a second time.
+    for (const question of [
+      questionCopy.sex,
+      questionCopy.age,
+      questionCopy.height,
+      questionCopy.weight,
+      questionCopy.activity,
+      questionCopy.goal,
+      questionCopy.rate,
+      questionCopy.timezone,
+    ]) {
+      expect(replies.filter((r) => r === question)).toHaveLength(1);
+    }
+    expect(replies).not.toContain(questionCopy.restarting);
+  });
+
+  it('never tells the user it saved when it did not', async () => {
+    // Every attempt fails; the script runs out while the user is still on the
+    // confirm screen. The success message must never have been sent.
+    const { db, saved } = makeFakeDb(99);
+    const { run, replies } = makeHarness([...FULL_ANSWERS, cb('confirm:yes'), cb('confirm:yes')]);
+
+    const result = await run(db);
+
+    expect(result.exhausted).toBe(true);
+    expect(saved).toHaveLength(0);
+    expect(replies).not.toContain(questionCopy.saved);
+    expect(replies.filter((r) => r === questionCopy.saveFailed)).toHaveLength(2);
+  });
+
+  it('«Изменить» still restarts the questionnaire and writes nothing', async () => {
+    const { db, saved } = makeFakeDb();
+    const { run, replies } = makeHarness([
+      ...FULL_ANSWERS,
+      cb('confirm:restart'),
+      ...FULL_ANSWERS,
+      cb('confirm:yes'),
+    ]);
+
+    const result = await run(db);
+
+    expect(result.exhausted).toBe(false);
+    expect(replies).toContain(questionCopy.restarting);
+    expect(saved).toHaveLength(1);
+  });
+});

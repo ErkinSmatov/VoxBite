@@ -221,34 +221,68 @@ export async function onboardingConversation(
     // The disclaimer is part of this string by construction (ONBOARD-06)
     // — never composed separately, never optional.
     const confirmMessage = targetsWithDisclaimerMessage(targets);
-    await ctx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() });
 
-    let decision: string | undefined;
-    while (decision === undefined) {
-      const update = await conversation.waitFor('callback_query:data', {
-        otherwise: (otherCtx) => otherCtx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() }),
-      });
-      await ack(update);
-      const data = update.callbackQuery.data;
-      if (data === CONFIRM_CALLBACK || data === RESTART_CALLBACK) {
-        decision = data;
-      } else {
-        // Any other value: forged or stale — re-send the confirmation
-        // screen and keep waiting.
-        await ctx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() });
+    // Confirm-and-save loop (CR-01). A failed write must not be fatal: the
+    // seven collected answers only exist in this function's local `answers`
+    // object, so if the save throws out of here the plugin exits the
+    // conversation and every one of them is gone. Instead the failure is
+    // caught, reported in Russian, and the confirm screen is re-shown with
+    // the answers still in hand — pressing «Всё верно» again retries.
+    // Note this loop is INSIDE the outer restart loop deliberately: falling
+    // back to the outer loop would reset `answers` and re-ask all seven
+    // questions, which is the data loss we are fixing.
+    let restartRequested = false;
+    while (!restartRequested) {
+      await ctx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() });
+
+      let decision: string | undefined;
+      while (decision === undefined) {
+        const update = await conversation.waitFor('callback_query:data', {
+          otherwise: (otherCtx) => otherCtx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() }),
+        });
+        await ack(update);
+        const data = update.callbackQuery.data;
+        if (data === CONFIRM_CALLBACK || data === RESTART_CALLBACK) {
+          decision = data;
+        } else {
+          // Any other value: forged or stale — re-send the confirmation
+          // screen and keep waiting.
+          await ctx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() });
+        }
       }
-    }
 
-    if (decision === CONFIRM_CALLBACK) {
+      if (decision === RESTART_CALLBACK) {
+        restartRequested = true;
+        break;
+      }
+
       const telegramId = ctx.from?.id;
       if (telegramId === undefined) {
         throw new Error('onboardingConversation: ctx.from is undefined at confirm time');
       }
+
       // Every database write inside this conversation goes through
-      // conversation.external() (Pitfall 2) — no exceptions.
-      await conversation.external(() => saveOnboardedUser(db, { telegramId, answers: completeAnswers, targets }));
-      await ctx.reply(questionCopy.saved);
-      return;
+      // conversation.external() (Pitfall 2) — no exceptions. The catch lives
+      // INSIDE the external op so the boolean it resolves to is what gets
+      // replayed, rather than a rejection being re-thrown on every replay.
+      const saved = await conversation.external(() =>
+        saveOnboardedUser(db, { telegramId, answers: completeAnswers, targets })
+          .then(() => true)
+          .catch((error: unknown) => {
+            // Message only — never the answers, which are health data.
+            console.error(
+              `Не удалось сохранить профиль: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            return false;
+          }),
+      );
+
+      if (saved) {
+        await ctx.reply(questionCopy.saved);
+        return;
+      }
+
+      await ctx.reply(questionCopy.saveFailed);
     }
 
     // Изменить — nothing was written; loop back to step 1.
