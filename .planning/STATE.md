@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-08-11T07:06:00.611Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-08-11T07:19:05.421Z"
 last_activity: 2026-08-11
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
-  percent: 63
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 ## Current Position
 
 Phase: 01 (foundation-data-domain-math) — EXECUTING
-Plan: 2 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-08-11
 
-Progress: [██████░░░░] 63%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [██████░░░░] 63%
 
 *Updated after each plan completion*
 | Phase 01 P03 | 45min | 3 tasks | 12 files |
+| Phase 01 P06 | 40min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Recent decisions affecting current work:
 - Roadmap: STT provider (Yandex SpeechKit vs. Whisper vs. Google) is MEDIUM confidence — needs a real-audio validation spike early in Phase 3, not deeper desk research.
 - [Phase 01]: Migration workflow: drizzle-kit generate+migrate only (push banned); 3 separate migrations (pgvector extension, schema, RLS) for reviewability
 - [Phase 01]: verify-schema.ts uses postgres.js in ${sql([...])} for IN-lists, not = any(sql.array()) which Postgres rejects there
+- [Phase 01]: Embedding input text is the bare description string only (no category prepended) — deferred per 01-RESEARCH.md Open Question #2
+- [Phase 01]: isIndexable() excludes only records with protein, fat AND carbs all null; a measured 0 counts as present data
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T07:06:00.601Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-08-11T07:17:23.080Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None

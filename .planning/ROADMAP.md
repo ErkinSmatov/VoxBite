@@ -56,7 +56,7 @@ Plans:
 - [x] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-06-PLAN.md — OpenAI embedding adapter, idempotent fdc_foods loader, npm run index-fdc pipeline
+- [x] 01-06-PLAN.md — OpenAI embedding adapter, idempotent fdc_foods loader, npm run index-fdc pipeline
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-07-PLAN.md — Run the indexing pipeline for real and verify the loaded index (verify-index)
