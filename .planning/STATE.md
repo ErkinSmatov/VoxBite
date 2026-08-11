@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-08-11T17:52:29.193Z"
+status: Ready for next phase
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-08-11T18:30:23.251Z"
 last_activity: 2026-08-11
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 15
-  completed_plans: 14
-  percent: 93
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 
 ## Current Position
 
-Phase: 02 (bot-skeleton-onboarding) — EXECUTING
-Plan: 6 of 7
-Status: Ready to execute
+Phase: 02 (bot-skeleton-onboarding) — COMPLETE
+Plan: 7 of 7
+Status: Ready for next phase
 Last activity: 2026-08-11
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 93%
 | Phase 02 P04 | 35min | 3 tasks | 7 files |
 | Phase 02 P05 | 25min | 3 tasks | 5 files |
 | Phase 02 P06 | 45min | 2 tasks | 5 files |
+| Phase 02 P07 | same-day | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,7 @@ Recent decisions affecting current work:
 - [Phase 02]: изменить restart implemented as an outer while(true) loop -- installed @grammyjs/conversations v2 API has no reenter() method
 - [Phase ?]: Widened Conversation<BotContext> alias to Conversation<BotContext, BotContext> so onboarding.ts type-checks against the real bot.ts registration
 - [Phase ?]: 'Fully onboarded' for /start branching requires both onboardedAt and targetKcal non-null, not onboardedAt alone
+- [Phase ?]: [Phase 02]: createPgStorageAdapter(db, keyPrefix) namespaces grammY session() and @grammyjs/conversations storage inside shared bot_sessions table -- two plugins defaulting to ctx.chatId as storage key collide silently
 
 ### Pending Todos
 
@@ -103,7 +105,6 @@ None yet.
 - Phase 1: Embedding model choice (`text-embedding-3-small` vs. alternatives) is cheap to re-test given the small FDC dataset (~10-13k records) — treat as revisitable, not a one-way door.
 - Phase 3: STT provider choice needs an empirical validation spike on real RU/KZ sample audio before locking in.
 - Phase 4: Correction mechanic (3-candidate swap + ±10g + add/remove) is a proposed UX pattern from TECH_SPEC §5.6, not yet confirmed with the owner — confirm during `/gsd-discuss-phase` for Phase 4.
-- Legal/medical disclaimer copy (Phase 2, ONBOARD-06) still needs final wording from the owner — not a technical blocker but should resolve before Phase 2 ships.
 
 ## Deferred Items
 
@@ -115,6 +116,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T17:52:24.028Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-08-11T18:28:36.714Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None

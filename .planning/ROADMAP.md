@@ -25,7 +25,7 @@ reminders, and other v2 features are explicitly out of this roadmap.
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation — data + domain math** - Postgres schema, offline USDA FDC indexing pipeline, and pure domain layer (BMR/TDEE/target calc, FDC embedding matching) — no Telegram, no bot code (completed 2026-08-11)
-- [ ] **Phase 2: Bot skeleton + onboarding** - Webhook handler and onboarding conversation that collects profile data and shows calculated КБЖУ targets
+- [x] **Phase 2: Bot skeleton + onboarding** - Webhook handler and onboarding conversation that collects profile data and shows calculated КБЖУ targets (completed 2026-08-11)
 - [ ] **Phase 3: Voice pipeline** - Voice/text message → STT → LLM dish decomposition → per-ingredient FDC matching, wired end to end with idempotency
 - [ ] **Phase 4: Confirm/correct + diary persistence** - Candidate-picker correction UX, persisted draft state, deterministic final calculation, diary write, edit/delete saved entries
 - [ ] **Phase 5: Diary views** - Daily diary view and weekly summary against targets
@@ -91,7 +91,7 @@ Plans:
 - [x] 02-06-PLAN.md — /start with the already-onboarded branch, conversation registration, manual checklist document
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-07-PLAN.md — owner sign-off on the disclaimer wording and the manual checklist walkthrough
+- [x] 02-07-PLAN.md — owner sign-off on the disclaimer wording and the manual checklist walkthrough
 **UI hint**: yes
 
 ### Phase 3: Voice pipeline
