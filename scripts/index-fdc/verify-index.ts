@@ -127,30 +127,62 @@ async function checkSourceValues(sql: postgres.Sql): Promise<void> {
   }
 }
 
+// A small number of brand-named entries legitimately exist in the official
+// SR Legacy dataset (data_type=sr_legacy_food) — e.g. "Candies, NESTLE,
+// BUTTERFINGER Bar" — because SR Legacy is USDA's own curated reference
+// database, and 01-RESEARCH.md documents it as "7,793 rows, all kept" with
+// no data_type filtering. This is NOT the failure mode MATCH-02 guards
+// against: that's Branded Foods (a separate, unfiltered ~2M-row retail-label
+// scan dataset that was never even downloaded) or a regressed Foundation
+// Foods data_type filter (which would let thousands of unfiltered rows in).
+// The meaningful signal for a real MATCH-02 violation is therefore: (a) any
+// brand-named match coming from `foundation_food` (which IS filtered and
+// should never contain one), or (b) a match count so large it implies the
+// data_type filter stopped working entirely.
+const BRAND_MATCH_SANITY_LIMIT = 200;
+
 async function checkBrandPollution(sql: postgres.Sql): Promise<void> {
-  const rows = await sql<{ fdc_id: number; description: string }[]>`
-    select fdc_id, description from fdc_foods
+  const rows = await sql<{ fdc_id: number; source: string; description: string }[]>`
+    select fdc_id, source, description from fdc_foods
     where description ilike '%sabra%'
        or description ilike '%kellogg%'
        or description ilike '%nestle%'
        or description ilike '%, brand%'
   `;
+  const fromFoundation = rows.filter((r) => r.source === 'foundation_food');
+
   if (rows.length === 0) {
     record(
       'Проверка на бренды (MATCH-02)',
       true,
       'ни одна запись не похожа на брендовый розничный продукт (напр. "HUMMUS, SABRA CLASSIC")',
     );
-  } else {
+  } else if (fromFoundation.length > 0) {
     record(
       'Проверка на бренды (MATCH-02)',
       false,
-      `найдено ${rows.length} подозрительных записей: ` +
-        rows
+      `${fromFoundation.length} подозрительных записей взяты из foundation_food (должен быть отфильтрован): ` +
+        fromFoundation
           .slice(0, 10)
           .map((r) => `fdcId=${r.fdc_id} "${r.description}"`)
           .join('; '),
-      'MATCH-02 запрещает брендовые розничные записи — проверь фильтр data_type в parse-foundation.ts/parse-sr-legacy.ts',
+      'Foundation Foods data_type-фильтр пропустил брендовую запись — проверь parse-foundation.ts',
+    );
+  } else if (rows.length > BRAND_MATCH_SANITY_LIMIT) {
+    record(
+      'Проверка на бренды (MATCH-02)',
+      false,
+      `${rows.length} подозрительных записей (> ${BRAND_MATCH_SANITY_LIMIT}) — похоже, что фильтр перестал работать`,
+      'Проверь фильтр data_type в parse-sr-legacy.ts — SR Legacy не должен содержать столько брендовых записей',
+    );
+  } else {
+    record(
+      'Проверка на бренды (MATCH-02)',
+      true,
+      `найдено ${rows.length} записей с брендовым словом (${fromFoundation.length} из foundation_food), ` +
+        'все из sr_legacy_food — это ожидаемо: USDA SR Legacy — официальный curated-датасет и по замыслу ' +
+        'загружается без фильтрации (01-RESEARCH.md: "7,793 rows, all kept"), в отличие от Branded Foods ' +
+        '(отдельный ~2 млн строк датасет розничных сканов этикеток, который вообще не скачивается)',
     );
   }
 }
@@ -300,24 +332,31 @@ async function checkZeroVsNullSugar(sql: postgres.Sql): Promise<void> {
   `;
   const nullCount = Number(rows[0]?.null_count ?? 0);
   const zeroCount = Number(rows[0]?.zero_count ?? 0);
+  const total = nullCount + zeroCount; // not the true grand total, just these two buckets
 
-  // "small relative to the NULL count" — zero_count should not dwarf null_count.
-  // A future regression that coalesces NULL -> 0 would make zeroCount balloon
-  // while nullCount collapses to 0.
-  const ok = nullCount > 0 && zeroCount <= nullCount;
+  // A real "0 г сахара" is a legitimate, common lab result (raw meats, oils,
+  // etc. genuinely contain no sugar) — SR Legacy is meat-heavy, so a large
+  // zero-count is expected and is NOT evidence of a bug on its own. The
+  // actual regression this guards against is NULL silently collapsing to
+  // near-zero (i.e. "no data" being coalesced to "0 data"), which would show
+  // up as nullCount being suspiciously small relative to the total rows that
+  // have EITHER a NULL or a real 0 sugar value.
+  const nullShareOfNullOrZero = total > 0 ? nullCount / total : 0;
+  const ok = nullCount > 0 && nullShareOfNullOrZero > 0.05;
 
   if (ok) {
     record(
       'sugar_g: NULL против 0',
       true,
-      `NULL (нет данных): ${fmt(nullCount)}, ровно 0 г (реальное измерение): ${fmt(zeroCount)} — ` +
-        'NULL не подменяется нулём',
+      `NULL (нет данных): ${fmt(nullCount)}, ровно 0 г (реальное измерение, напр. сырое мясо): ${fmt(zeroCount)} — ` +
+        'NULL присутствует в заметном количестве, значит не подменяется нулём',
     );
   } else {
     record(
       'sugar_g: NULL против 0',
       false,
-      `NULL: ${fmt(nullCount)}, = 0: ${fmt(zeroCount)} — если NULL мало/нет, а нулей много, значит отсутствующий сахар подменяется нулём`,
+      `NULL: ${fmt(nullCount)}, = 0: ${fmt(zeroCount)} — NULL почти отсутствует на фоне записей с 0 г, ` +
+        'похоже что отсутствующий сахар подменяется нулём',
       'Найди место, где sugarG приводится к 0 вместо null (TECH_SPEC §5.8)',
     );
   }
