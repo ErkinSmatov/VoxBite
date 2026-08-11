@@ -59,7 +59,7 @@ function record(name: string, ok: boolean, detail: string, remediation?: string)
   console.log(`${label} ${name} — ${detail}`);
 }
 
-const REQUIRED_TABLES = ['users', 'diary', 'fdc_foods'] as const;
+const REQUIRED_TABLES = ['users', 'diary', 'fdc_foods', 'bot_sessions'] as const;
 
 async function checkTablesExist(sql: postgres.Sql): Promise<void> {
   const rows = await sql<{ table_name: string }[]>`
@@ -72,7 +72,7 @@ async function checkTablesExist(sql: postgres.Sql): Promise<void> {
     record(
       'Таблицы существуют',
       true,
-      `users, diary, fdc_foods — все три таблицы найдены в схеме public`,
+      `${REQUIRED_TABLES.join(', ')} — все ${REQUIRED_TABLES.length} таблиц(ы) найдены в схеме public`,
     );
   } else {
     record(
@@ -266,7 +266,7 @@ async function checkRls(sql: postgres.Sql): Promise<void> {
     record(
       'Row Level Security (RLS) включён',
       true,
-      'users, diary, fdc_foods защищены от чтения через публичный Supabase API (anon-ключ) — без этого данные пользователей были бы видны всем в интернете',
+      `${REQUIRED_TABLES.join(', ')} защищены от чтения через публичный Supabase API (anon-ключ) — без этого данные пользователей были бы видны всем в интернете`,
     );
   } else {
     record(
