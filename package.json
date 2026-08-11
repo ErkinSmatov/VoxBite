@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check-setup": "tsx scripts/check-setup.ts",
+    "bot": "tsx src/bot/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -24,9 +25,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@grammyjs/conversations": "2.1.1",
     "csv-parse": "7.0.2",
     "dotenv-safe": "9.1.0",
     "drizzle-orm": "0.45.2",
+    "grammy": "1.45.1",
     "openai": "7.4.0",
     "postgres": "3.4.9"
   },
