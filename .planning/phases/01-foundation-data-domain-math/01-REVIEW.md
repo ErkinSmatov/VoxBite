@@ -49,11 +49,15 @@ files_reviewed_list:
   - src/domain/nutrition/target-macros.ts
   - src/domain/nutrition/types.ts
 findings:
-  critical: 2
-  warning: 13
+  critical: 0
+  critical_resolved: 2
+  warning: 10
+  warning_resolved: 3
   info: 9
   total: 24
 status: issues_found
+fixes_applied: [CR-01, CR-02, WR-01, WR-02, WR-06]
+fixes_applied_at: 2026-08-11
 ---
 
 # Phase 1: Code Review Report
@@ -101,7 +105,7 @@ takes pains to provide.
 
 ## Critical Issues
 
-### CR-01: Any unrecognized `--source=` value silently indexes SR Legacy instead of failing
+### CR-01: [RESOLVED — 1697846] Any unrecognized `--source=` value silently indexes SR Legacy instead of failing
 
 **File:** `scripts/index-fdc/run.ts:56-62`
 **Issue:** `selectedDatasets()` has no `else`/validation branch. The final
@@ -149,7 +153,7 @@ Apply the same explicit validation to `--only=` in `download.ts:33-38` (see WR-0
 
 ---
 
-### CR-02: Paid embeddings are never persisted incrementally — a mid-run failure discards every embedding already bought
+### CR-02: [RESOLVED — 22eec75] Paid embeddings are never persisted incrementally — a mid-run failure discards every embedding already bought
 
 **File:** `scripts/index-fdc/run.ts:258-284` (with `scripts/index-fdc/build-embeddings.ts:28-60`)
 **Issue:** Step 7 calls `buildEmbeddings(embedder, toProcess, ...)`, which loops
@@ -201,7 +205,7 @@ version-match filter will then genuinely skip everything already written.
 
 ## Warnings
 
-### WR-01: `embed()` can return a sparse array with `undefined` holes; neither it nor `buildEmbeddings` detects it
+### WR-01: [RESOLVED — b2b4aa0] `embed()` can return a sparse array with `undefined` holes; neither it nor `buildEmbeddings` detects it
 
 **File:** `src/adapters/embeddings/openai-embed.ts:143-159`, `scripts/index-fdc/build-embeddings.ts:50-59`
 **Issue:** `results` is `new Array(texts.length)` and is filled only at
@@ -238,7 +242,7 @@ And in `buildEmbeddings`, assert no holes: `if (allEmbeddings.some((e) => e === 
 
 ---
 
-### WR-02: A blank or non-integer `fdc_id` passes validation and collapses to `fdcId = 0`
+### WR-02: [RESOLVED — 86ce292] A blank or non-integer `fdc_id` passes validation and collapses to `fdcId = 0`
 
 **File:** `scripts/index-fdc/parse-foundation.ts:76-83`
 **Issue:** `Number('')` and `Number('   ')` are both `0`, and `Number.isFinite(0)`
@@ -334,7 +338,7 @@ if (results.length === 0) {
 
 ---
 
-### WR-06: `verify-schema.ts` and `verify-index.ts` have no top-level error handler — the owner gets a raw Node stack trace
+### WR-06: [RESOLVED — bc51256] `verify-schema.ts` and `verify-index.ts` have no top-level error handler — the owner gets a raw Node stack trace
 
 **File:** `scripts/verify-schema.ts:334`, `scripts/index-fdc/verify-index.ts:479`
 **Issue:** Both end with a bare `main();`. Every DB call inside is unguarded
