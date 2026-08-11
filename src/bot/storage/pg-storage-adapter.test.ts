@@ -128,4 +128,46 @@ describe('createPgStorageAdapter', () => {
 
     await expect(adapter.delete('never-existed')).resolves.toBeUndefined();
   });
+
+  // Regression test for the Phase 2 manual-verification bug: session() and
+  // conversations() both default to `ctx.chatId` as the raw storage key, so
+  // two adapters built over the same table without a keyPrefix would read
+  // and overwrite each other's rows for the same logical chat. Namespacing
+  // must keep them fully isolated even for the identical raw key.
+  it('two adapters with different keyPrefix values do not observe each other\'s writes for the same logical key', async () => {
+    const { db, rows } = makeFakeDb();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sessionAdapter = createPgStorageAdapter<{ kind: 'session' }>(db as any, 'sess:');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conversationAdapter = createPgStorageAdapter<{ kind: 'conversation'; version: unknown[] }>(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      db as any,
+      'conv:',
+    );
+    const sharedRawKey = '999999999'; // stand-in for a real chat ID both plugins derive by default
+
+    // session() writes its plain initial value first, as it does on every
+    // request before the conversations plugin runs.
+    await sessionAdapter.write(sharedRawKey, { kind: 'session' });
+
+    // conversations() then reads for the same raw key — before the fix,
+    // this returned the session's plain `{}`-shaped value and its
+    // unpack() would throw "Unknown data format, cannot parse version".
+    const conversationRead = await conversationAdapter.read(sharedRawKey);
+    expect(conversationRead).toBeUndefined();
+
+    await conversationAdapter.write(sharedRawKey, { kind: 'conversation', version: [1] });
+
+    // Each adapter must only ever see its own namespaced row.
+    await expect(sessionAdapter.read(sharedRawKey)).resolves.toEqual({ kind: 'session' });
+    await expect(conversationAdapter.read(sharedRawKey)).resolves.toEqual({
+      kind: 'conversation',
+      version: [1],
+    });
+
+    // Underlying table has two distinct rows, not one shared row.
+    expect(rows.size).toBe(2);
+    expect(rows.has('sess:999999999')).toBe(true);
+    expect(rows.has('conv:999999999')).toBe(true);
+  });
 });

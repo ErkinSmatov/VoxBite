@@ -133,6 +133,72 @@ was not touched — all of that is the owner's step to perform.
 Not ready — Phase 2 cannot be marked complete until Task 3's manual
 walkthrough is done and this SUMMARY is finalized with real results.
 
+## Deviations / Fixes (gap fix, post-checkpoint)
+
+**This is exactly the kind of defect Task 3's manual checklist exists to
+catch — and it did.** During the owner's real walkthrough of Task 3, sending
+`/start` produced `Ошибка обработчика: Error in middleware: Unknown data
+format, cannot parse version` instead of the onboarding greeting. This is
+recorded as evidence the checklist earns its keep: an automated test suite
+that only exercises adapters in isolation would not have caught a cross-
+subsystem key collision that only manifests when both `session()` and
+`conversations()` run against the same live chat.
+
+**Root cause:** `src/bot/bot.ts` wired both grammY's `session()` middleware
+and `@grammyjs/conversations`' `conversations()` plugin to two *separate
+instances* of `createPgStorageAdapter(deps.db)`, both backed by the same
+`bot_sessions` table. grammY's `defaultGetSessionKey` and the conversations
+plugin's `defaultStorageKey` both default to `ctx.chatId?.toString()` — in a
+private chat these are the identical string, so both subsystems read and
+wrote the *same row*. `session()` ran first and wrote its plain initial
+value `{}`. `conversations()` then read that same row expecting its own
+versioned envelope (`{ version: [...] }`) and its `unpack()` threw `Unknown
+data format, cannot parse version`. Confirmed live in the database: the
+single `bot_sessions` row for the owner's chat held `value={}` with no
+`version` field (the row's `key` was the owner's numeric Telegram chat ID —
+not reproduced here per this project's rule against committing the owner's
+Telegram ID into files).
+
+**Fix:** `createPgStorageAdapter(db, keyPrefix)` in
+`src/bot/storage/pg-storage-adapter.ts` now accepts an optional key prefix,
+applied inside `read`/`write`/`delete` before touching the table. `bot.ts`
+now passes `'sess:'` to the session adapter and `'conv:'` to the
+conversations adapter, so the two subsystems get disjoint key namespaces
+within the same table even for an identical raw chat-ID key. Middleware
+registration order (allowlist → session → conversations → conversation →
+commands, decision D-05) and the stored value's opacity were both left
+unchanged — the fix is purely inside the adapter factory and its two call
+sites.
+
+**Regression test:** added
+`src/bot/storage/pg-storage-adapter.test.ts` — *"two adapters with different
+keyPrefix values do not observe each other's writes for the same logical
+key"*. It builds a `'sess:'`-prefixed adapter and a `'conv:'`-prefixed
+adapter over one fake in-memory table, writes a session-shaped value under
+a shared raw chat-ID-shaped key, asserts the conversation adapter reads
+`undefined` (not the session's value) for that same raw key, then writes
+and re-reads both independently to confirm the underlying fake table ends
+up with two distinct rows (`sess:<key>`, `conv:<key>`) rather than one
+shared row. This test fails against the pre-fix adapter (no `keyPrefix`
+parameter, same raw key used by both).
+
+**Stale row cleanup:** the live `bot_sessions` row for the owner's chat
+(`value={}`) is now orphaned — no consumer looks up an unprefixed key
+anymore. It contained no user data (an empty session object), so it was
+deleted via a one-off script (`npx tsx`, not a migration, not committed —
+the script was written to a temp path, run once directly against the live
+database, and removed immediately after). No other rows were touched.
+
+**Verification run after the fix:**
+- `npx tsc --noEmit` — clean
+- `npm test` — 305/305 passed (22 files; +1 test from the regression case)
+- Plan 02-06's registration-order static check (re-run verbatim from its
+  `<automated>` verify block) — `start wiring OK`
+- The bot process was **not** started, per instruction, to leave the
+  owner's Telegram long-polling connection uncontested.
+
+**Commit:** `fix(02): namespace session/conversation storage keys to stop bot_sessions collision`
+
 ---
 *Phase: 02-bot-skeleton-onboarding*
-*Status: PAUSED — awaiting Task 3 (owner manual verification)*
+*Status: PAUSED — awaiting Task 3 (owner manual verification); this gap fix unblocks the owner to retry `/start`*

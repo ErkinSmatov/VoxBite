@@ -44,20 +44,25 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
   bot.use(createAllowlistMiddleware(deps.allowlist));
 
   // 2. Session storage, backed by bot_sessions (never process memory).
+  // Keys are namespaced with 'sess:' so this adapter's rows never collide
+  // with the conversations adapter below, even though both default to
+  // `ctx.chatId` as the raw key in a private chat (see the key-namespacing
+  // note in pg-storage-adapter.ts).
   bot.use(
     session({
-      storage: createPgStorageAdapter(deps.db),
+      storage: createPgStorageAdapter(deps.db, 'sess:'),
       initial: (): SessionData => ({}),
     }),
   );
 
-  // 3. Conversations plugin, wired to the same Postgres storage so a
-  // half-finished onboarding conversation survives a restart.
+  // 3. Conversations plugin, wired to the same Postgres table (different
+  // key namespace, 'conv:') so a half-finished onboarding conversation
+  // survives a restart without colliding with session storage above.
   bot.use(
     conversations({
       storage: {
         type: 'key',
-        adapter: createPgStorageAdapter(deps.db),
+        adapter: createPgStorageAdapter(deps.db, 'conv:'),
       },
     }),
   );
