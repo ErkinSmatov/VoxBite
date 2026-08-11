@@ -22,6 +22,20 @@
       "when": 1786431621086,
       "tag": "0002_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786465795113,
+      "tag": "0003_grey_anthem",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786465795114,
+      "tag": "0004_bot_sessions_rls",
+      "breakpoints": true
     }
   ]
 }
