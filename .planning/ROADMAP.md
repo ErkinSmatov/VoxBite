@@ -82,7 +82,7 @@ Plans:
 - [x] 02-03-PLAN.md — bot_sessions schema, generated migration + RLS, blocking owner review before db:migrate
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-04-PLAN.md — Postgres session storage adapter, fail-closed allowlist gate, /whoami, entrypoint with 409 handling
+- [x] 02-04-PLAN.md — Postgres session storage adapter, fail-closed allowlist gate, /whoami, entrypoint with 409 handling
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-05-PLAN.md — inline keyboards, idempotent users upsert, the seven-step onboarding conversation
