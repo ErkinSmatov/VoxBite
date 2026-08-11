@@ -49,8 +49,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Owner sets up Supabase (pgvector) + OpenAI (key, hard spend cap) and a working .env
-- [ ] 01-04-PLAN.md — Nutrition domain math: Mifflin-St Jeor, TDEE, rate cap, safety floor, target macros (TDD)
-- [ ] 01-05-PLAN.md — FDC download/unzip, food.csv parsers with the foundation_food filter, priority-ordered nutrient resolution
+- [x] 01-04-PLAN.md — Nutrition domain math: Mifflin-St Jeor, TDEE, rate cap, safety floor, target macros (TDD)
+- [x] 01-05-PLAN.md — FDC download/unzip, food.csv parsers with the foundation_food filter, priority-ordered nutrient resolution
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — Drizzle schema (users, diary, fdc_foods + vector(1536)/HNSW), versioned migrations applied, RLS, verify-schema
