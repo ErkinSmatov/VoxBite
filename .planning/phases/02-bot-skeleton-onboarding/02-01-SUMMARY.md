@@ -117,3 +117,7 @@ None further for this plan — the owner has already completed the one manual st
 
 *Phase: 02-bot-skeleton-onboarding*
 *Completed: 2026-08-11*
+
+## Self-Check: PASSED
+
+All referenced files (`src/config/env.ts`, `.env.example`, this SUMMARY) and all referenced commit hashes (`dd78070`, `92a5b32`, `562d245`, `ac0c472`) verified present.
