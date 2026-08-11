@@ -1,0 +1,7 @@
+"fdc_id","data_type","description","food_category_id","publication_date"
+"2000001","foundation_food","Beans, snap, green, raw","11","2019-04-01"
+"2000002","foundation_food","Hummus, commercial","16","2019-04-01"
+"319875","market_acquisition","HUMMUS, SABRA CLASSIC","16","2019-04-01"
+"319874","sample_food","HUMMUS, SABRA CLASSIC","16","2019-04-01"
+"2000003","sub_sample_food","Hummus, commercial, sub sample","16","2019-04-01"
+"2000004","agricultural_acquisition","Beans, snap, green, raw, agricultural sample","11","2019-04-01"
