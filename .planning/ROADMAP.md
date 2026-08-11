@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 **Wave 1**
-- [ ] 01-01-PLAN.md — Node/TypeScript scaffolding, Vitest, secret hygiene, env loader, check-setup script
+- [x] 01-01-PLAN.md — Node/TypeScript scaffolding, Vitest, secret hygiene, env loader, check-setup script
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Owner sets up Supabase (pgvector) + OpenAI (key, hard spend cap) and a working .env
