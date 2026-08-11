@@ -3,7 +3,8 @@
  *
  * Order of operations: parse -> resolve nutrients -> filter (isIndexable)
  * -> skip already-indexed (dataset+model version match) -> print cost
- * estimate -> embed -> upsert -> final coverage report.
+ * estimate -> (embed one batch -> upsert that batch) x N -> final coverage
+ * report.
  *
  * D-03 (owner runs this by hand, alone): every step prints what it
  * completed before the next one starts, and any error's closing message
@@ -12,7 +13,11 @@
  * rows whose dataset+model version already match (see load.ts).
  *
  * Never wraps the whole run in one transaction — partial progress
- * surviving a crash is the point, not a bug.
+ * surviving a crash is the point, not a bug. Именно поэтому эмбеддинги и
+ * запись идут ОДНИМ циклом по пачкам (см. build-embeddings.ts): пачка
+ * становится долговечной сразу после того, как за неё заплатили, а не
+ * в самом конце прогона. Иначе обещание «перезапусти, уже загруженное
+ * пропустится» было бы неправдой — до первой записи пропускать нечего.
  */
 import { sql } from 'drizzle-orm';
 import { createDb, closeDb } from '../../src/db/client.js';
@@ -27,7 +32,7 @@ import { parseFoundationFoods } from './parse-foundation.js';
 import { parseSrLegacyFoods } from './parse-sr-legacy.js';
 import { buildNutrientIndex, resolveFoodNutrients } from './resolve-nutrients.js';
 import { isIndexable, loadExistingVersions, upsertFdcFoods, type IndexableRecord } from './load.js';
-import { buildEmbeddings } from './build-embeddings.js';
+import { embedAndStore } from './build-embeddings.js';
 import type { NewFdcFood } from '../../src/db/schema/fdc-foods.js';
 
 /** MATCH-02 tripwire: a healthy Foundation Foods kept-count is ~469. If the
@@ -262,8 +267,8 @@ async function main(): Promise<void> {
 
   // --- Steps 5-9: everything that touches the database happens here, in a
   // try/finally so the connection is always closed — never wrapped in a
-  // single transaction, so partial progress (Step 8's upsert already
-  // happened) survives even if a later step throws (D-03).
+  // single transaction, so partial progress (каждая уже записанная пачка
+  // шага 7-8) survives even if a later batch or step throws (D-03).
   const db = createDb();
   try {
     console.log('\n--- Шаг 5: пропуск уже проиндексированных записей ---');
@@ -311,32 +316,43 @@ async function main(): Promise<void> {
       return;
     }
 
-    // --- Step 7: embed with progress ---------------------------------------
-    console.log('\n--- Шаг 7: получение эмбеддингов ---');
+    // --- Steps 7-8: embed AND write, пачка за пачкой -----------------------
+    // Раньше это были два раздельных шага: сначала все ~8 200 эмбеддингов
+    // копились в памяти, и только потом уходила одна запись в базу. Любой
+    // сбой на середине выбрасывал всё уже оплаченное (CR-02). Теперь каждая
+    // пачка из 100 записей попадает в базу сразу после того, как за неё
+    // заплатили, — падение на середине оставляет всё предыдущее в базе, и
+    // повторный запуск за это уже не платит.
+    console.log('\n--- Шаги 7-8: эмбеддинги и запись в базу (по пачкам) ---');
     const embedder = createOpenAIEmbedder();
-    const embedded = await buildEmbeddings(embedder, toProcess, (done, total, batchIndex, batchCount) => {
-      console.log(`batch ${batchIndex}/${batchCount}, ${fmtCount(done)}/${fmtCount(total)} записей`);
-    });
-
-    // --- Step 8: upsert ------------------------------------------------------
-    console.log('\n--- Шаг 8: запись в базу данных ---');
-    const rows: NewFdcFood[] = embedded.map(({ record, embedding }) => {
-      const ds = FDC_DATASETS.find((d) => d.source === record.source);
-      return {
-        fdcId: record.fdcId,
-        description: record.description,
-        source: record.source,
-        kcal: record.kcal,
-        proteinG: record.proteinG,
-        fatG: record.fatG,
-        carbsG: record.carbsG,
-        sugarG: record.sugarG,
-        embedding,
-        datasetVersion: ds?.datasetVersion ?? 'unknown',
-        embeddingModelVersion: EMBEDDING_MODEL,
-      };
-    });
-    const written = await upsertFdcFoods(db, rows);
+    const written = await embedAndStore(
+      embedder,
+      toProcess,
+      async (batch) => {
+        const rows: NewFdcFood[] = batch.map(({ record, embedding }) => {
+          const ds = FDC_DATASETS.find((d) => d.source === record.source);
+          return {
+            fdcId: record.fdcId,
+            description: record.description,
+            source: record.source,
+            kcal: record.kcal,
+            proteinG: record.proteinG,
+            fatG: record.fatG,
+            carbsG: record.carbsG,
+            sugarG: record.sugarG,
+            embedding,
+            datasetVersion: ds?.datasetVersion ?? 'unknown',
+            embeddingModelVersion: EMBEDDING_MODEL,
+          };
+        });
+        return upsertFdcFoods(db, rows);
+      },
+      ({ batchIndex, batchCount, written: done, total }) => {
+        console.log(
+          `пачка ${batchIndex}/${batchCount}: записано в базу ${fmtCount(done)}/${fmtCount(total)} записей`,
+        );
+      },
+    );
     console.log(`Записано/обновлено строк: ${fmtCount(written)}`);
 
     // --- Step 9: final report ------------------------------------------------
