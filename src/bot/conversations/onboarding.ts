@@ -62,8 +62,14 @@ import { saveOnboardedUser } from '../onboarding/save-user.js';
 
 export const ONBOARDING_CONVERSATION_ID = 'onboarding';
 
-/** Local alias — Plan 06 registers this against the real BotContext. */
-type OnboardingConversation = Conversation<BotContext>;
+/**
+ * Local alias — Plan 06 registers this against the real BotContext for both
+ * type parameters (`Conversation<OC, C>`): the outer context (what enters
+ * the conversation) and the inner context (what every `waitFor` resolves
+ * to) are the same `BotContext` in this bot, since `createConversation` is
+ * registered with `<BotContext, BotContext>` in bot.ts.
+ */
+type OnboardingConversation = Conversation<BotContext, BotContext>;
 
 /**
  * Button step: ask `question`, wait for a `callback_query:data` update, and
