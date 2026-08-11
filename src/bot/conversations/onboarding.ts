@@ -33,6 +33,13 @@
  * conversation function's body is replayed after every incoming update, so
  * anything whose result must stay identical across replays has to be
  * wrapped, not called directly.
+ *
+ * Every callback query is acknowledged through `ack()` (src/bot/telegram/ack.ts),
+ * never a bare `answerCallbackQuery()` (CR-02). This conversation waits for a
+ * button press indefinitely, so a keyboard sitting in the user's history can
+ * be tapped a day later — Telegram then rejects the acknowledgement with
+ * `400: query is too old`, and an unguarded throw here would make the
+ * plugin exit the conversation and discard every answer collected so far.
  */
 import type { Conversation } from '@grammyjs/conversations';
 import type { Db } from '../../db/client.js';
@@ -59,6 +66,7 @@ import {
 import { parseAge, parseHeight, parseWeight, type ParseResult } from '../onboarding/parse-fields.js';
 import { RATE_PRESETS_KG_PER_MONTH, decodeRate } from '../onboarding/rate-presets.js';
 import { saveOnboardedUser } from '../onboarding/save-user.js';
+import { ack } from '../telegram/ack.js';
 
 export const ONBOARDING_CONVERSATION_ID = 'onboarding';
 
@@ -93,7 +101,7 @@ async function askOption<T extends string>(
     const update = await conversation.waitFor('callback_query:data', {
       otherwise: (otherCtx) => otherCtx.reply(question, { reply_markup: buildOptionKeyboard(options, perRow) }),
     });
-    await update.answerCallbackQuery();
+    await ack(update);
     const decoded = decodeOption(options, update.callbackQuery.data);
     if (decoded !== undefined) {
       return decoded;
@@ -116,7 +124,7 @@ async function askRate(conversation: OnboardingConversation, ctx: BotContext): P
     const update = await conversation.waitFor('callback_query:data', {
       otherwise: (otherCtx) => otherCtx.reply(questionCopy.rate, { reply_markup: buildRateKeyboard() }),
     });
-    await update.answerCallbackQuery();
+    await ack(update);
     const decoded = decodeRate(update.callbackQuery.data);
     if (decoded !== undefined && (RATE_PRESETS_KG_PER_MONTH as readonly number[]).includes(decoded)) {
       return decoded;
@@ -220,7 +228,7 @@ export async function onboardingConversation(
       const update = await conversation.waitFor('callback_query:data', {
         otherwise: (otherCtx) => otherCtx.reply(confirmMessage, { reply_markup: buildConfirmKeyboard() }),
       });
-      await update.answerCallbackQuery();
+      await ack(update);
       const data = update.callbackQuery.data;
       if (data === CONFIRM_CALLBACK || data === RESTART_CALLBACK) {
         decision = data;

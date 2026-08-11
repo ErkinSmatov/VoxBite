@@ -23,6 +23,7 @@ import { createPgStorageAdapter } from './storage/pg-storage-adapter.js';
 import { whoamiHandler } from './commands/whoami.js';
 import { createStartHandler, RESTART_ONBOARDING_CALLBACK } from './commands/start.js';
 import { onboardingConversation, ONBOARDING_CONVERSATION_ID } from './conversations/onboarding.js';
+import { ack } from './telegram/ack.js';
 
 export interface SessionData {
   // Empty for now — conversations own their own state via the storage
@@ -82,7 +83,11 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
   bot.command('whoami', whoamiHandler);
   bot.command('start', createStartHandler(deps.db));
   bot.callbackQuery(RESTART_ONBOARDING_CALLBACK, async (ctx) => {
-    await ctx.answerCallbackQuery();
+    // `ack`, not a bare answerCallbackQuery (CR-02): the "Пройти анкету
+    // заново" button sits in the user's history forever, so tapping it a day
+    // later gets a `400: query is too old` — which must not stop us from
+    // actually entering the conversation.
+    await ack(ctx);
     await ctx.conversation.enter(ONBOARDING_CONVERSATION_ID);
   });
 
