@@ -30,6 +30,7 @@ import {
   DecompositionFailedError,
   DecompositionSchema,
   type Decomposition,
+  type DecompositionResult,
   type DishDecomposer,
 } from './types.js';
 
@@ -114,7 +115,7 @@ export function createOpenAIDecomposer(opts: CreateOpenAIDecomposerOptions = {})
   }
 
   return {
-    async decompose(transcript: string): Promise<Decomposition> {
+    async decompose(transcript: string): Promise<DecompositionResult> {
       const generate = getGenerate();
 
       async function attempt(strict: boolean): Promise<{ object: Decomposition; usage: unknown }> {
@@ -130,7 +131,7 @@ export function createOpenAIDecomposer(opts: CreateOpenAIDecomposerOptions = {})
 
       try {
         const result = await attempt(false);
-        return result.object;
+        return { decomposition: result.object, usage: result.usage, model };
       } catch (err) {
         if (!NoObjectGeneratedError.isInstance(err)) {
           throw toOwnerMessage(err);
@@ -138,7 +139,7 @@ export function createOpenAIDecomposer(opts: CreateOpenAIDecomposerOptions = {})
         console.error(`decomposition schema-invalid on first attempt, model=${model} — retrying once (DECOMP-03)`);
         try {
           const retryResult = await attempt(true);
-          return retryResult.object;
+          return { decomposition: retryResult.object, usage: retryResult.usage, model };
         } catch (retryErr) {
           if (NoObjectGeneratedError.isInstance(retryErr)) {
             console.error(`decomposition schema-invalid on retry, model=${model} — giving up (DECOMP-03)`);

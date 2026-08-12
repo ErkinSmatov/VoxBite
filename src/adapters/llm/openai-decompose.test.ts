@@ -58,8 +58,33 @@ describe('createOpenAIDecomposer', () => {
 
     const result = await decomposer.decompose('бешбармак с луком');
 
-    expect(result.items).toEqual(items);
+    expect(result.decomposition.items).toEqual(items);
     expect(calls.length).toBe(1);
+  });
+
+  it('passes the provider usage and the model name through to the caller, so the D-17 cost line can report real token counts', async () => {
+    const items = [{ component: 'банан', component_en: 'banana', grams: 120 }];
+    const { generate } = makeFakeGenerate([{ object: { items } }]);
+    const decomposer = createOpenAIDecomposer({ generate });
+
+    const result = await decomposer.decompose('съел банан');
+
+    expect(result.usage).toEqual({ inputTokens: 5, outputTokens: 5 });
+    expect(result.model).toBe(DECOMPOSITION_MODEL);
+  });
+
+  it('passes usage through from the retry attempt too, not only the first attempt', async () => {
+    const items = [{ component: 'рис', component_en: 'rice, cooked', grams: 150 }];
+    const { generate } = makeFakeGenerate([
+      { error: makeNoObjectGeneratedError() },
+      { object: { items } },
+    ]);
+    const decomposer = createOpenAIDecomposer({ generate });
+
+    const result = await decomposer.decompose('плов');
+
+    expect(result.usage).toEqual({ inputTokens: 5, outputTokens: 5 });
+    expect(result.model).toBe(DECOMPOSITION_MODEL);
   });
 
   it('resolves with an empty list and calls generate exactly once — no retry spent (D-08)', async () => {
@@ -68,7 +93,7 @@ describe('createOpenAIDecomposer', () => {
 
     const result = await decomposer.decompose('привет, как дела');
 
-    expect(result.items).toEqual([]);
+    expect(result.decomposition.items).toEqual([]);
     expect(calls.length).toBe(1);
   });
 
@@ -79,7 +104,7 @@ describe('createOpenAIDecomposer', () => {
 
     const result = await decomposer.decompose('съел банан');
 
-    expect(result.items).toEqual(items);
+    expect(result.decomposition.items).toEqual(items);
     expect(calls.length).toBe(1);
   });
 
@@ -93,7 +118,7 @@ describe('createOpenAIDecomposer', () => {
 
     const result = await decomposer.decompose('плов');
 
-    expect(result.items).toEqual(items);
+    expect(result.decomposition.items).toEqual(items);
     expect(calls.length).toBe(2);
     expect(calls[0]?.prompt).not.toContain('последняя попытка');
     expect(calls[1]?.prompt).toMatch(/предыдущ.*попытк/is);

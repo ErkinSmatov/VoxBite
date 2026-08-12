@@ -86,10 +86,6 @@ export class DecompositionFailedError extends Error {
   }
 }
 
-export interface DishDecomposer {
-  decompose(transcript: string): Promise<Decomposition>;
-}
-
 /**
  * `usage` stays `unknown` here deliberately — the AI SDK v7 usage field
  * names (`inputTokens`/`outputTokens`/...) must be narrowed at the call
@@ -99,4 +95,8 @@ export interface DecompositionResult {
   decomposition: Decomposition;
   usage: unknown;
   model: string;
+}
+
+export interface DishDecomposer {
+  decompose(transcript: string): Promise<DecompositionResult>;
 }
