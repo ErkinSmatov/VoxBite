@@ -18,7 +18,8 @@
     "fdc:download": "tsx scripts/index-fdc/download.ts",
     "index-fdc": "tsx scripts/index-fdc/run.ts",
     "verify-index": "tsx scripts/index-fdc/verify-index.ts",
-    "verify-matches": "tsx scripts/index-fdc/verify-matches.ts"
+    "verify-matches": "tsx scripts/index-fdc/verify-matches.ts",
+    "verify-stt": "tsx scripts/verify-stt.ts"
   },
   "keywords": [],
   "author": "",
