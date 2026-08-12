@@ -30,7 +30,7 @@ function strongComponent(overrides: Partial<DraftComponent> = {}): DraftComponen
     componentEn: 'chicken breast',
     grams: 150,
     candidates,
-    chosenFdcId: candidates[0].fdcId,
+    chosenFdcId: candidates[0]!.fdcId,
     weakMatch: false,
     ...overrides,
   };
@@ -43,7 +43,7 @@ function weakComponent(overrides: Partial<DraftComponent> = {}): DraftComponent 
     componentEn: 'rice',
     grams: 100,
     candidates,
-    chosenFdcId: candidates[0].fdcId,
+    chosenFdcId: candidates[0]!.fdcId,
     weakMatch: true,
     ...overrides,
   };
