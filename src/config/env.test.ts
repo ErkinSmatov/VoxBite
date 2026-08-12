@@ -19,6 +19,7 @@ function clearRequiredEnv() {
   delete process.env.OPENAI_API_KEY;
   delete process.env.TELEGRAM_BOT_TOKEN;
   delete process.env.BETA_ALLOWLIST;
+  delete process.env.STT_MODEL;
 }
 
 beforeEach(() => {
@@ -40,7 +41,7 @@ describe('env.ts', () => {
   it('REQUIRED_ENV_KEYS and OPTIONAL_ENV_KEYS together match exactly the keys declared in .env.example', async () => {
     const { REQUIRED_ENV_KEYS, OPTIONAL_ENV_KEYS } = await import('./env');
     expect(REQUIRED_ENV_KEYS).toEqual(['DATABASE_URL', 'OPENAI_API_KEY', 'TELEGRAM_BOT_TOKEN']);
-    expect(OPTIONAL_ENV_KEYS).toEqual(['BETA_ALLOWLIST']);
+    expect(OPTIONAL_ENV_KEYS).toEqual(['BETA_ALLOWLIST', 'STT_MODEL']);
 
     const examplePath = path.resolve(import.meta.dirname, '../../.env.example');
     const exampleContent = readFileSync(examplePath, 'utf8');
@@ -113,5 +114,16 @@ describe('env.ts', () => {
     resetEnvCacheForTests();
     const result = loadEnv();
     expect(result.BETA_ALLOWLIST).toBe('');
+  });
+
+  it('loadEnv() returns STT_MODEL as an empty string when the variable is entirely absent', async () => {
+    clearRequiredEnv();
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    const { loadEnv, resetEnvCacheForTests } = await import('./env');
+    resetEnvCacheForTests();
+    const result = loadEnv();
+    expect(result.STT_MODEL).toBe('');
   });
 });
