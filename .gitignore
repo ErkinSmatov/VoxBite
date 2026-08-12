@@ -5,5 +5,8 @@ coverage/
 .env.*
 !.env.example
 data/
+# Владелец кладёт сюда свои личные голосовые записи для npm run verify-stt —
+# эти файлы никогда не должны попасть в git (D-04, D-05).
+samples/
 *.log
 .DS_Store
