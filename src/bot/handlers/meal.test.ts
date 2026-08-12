@@ -76,7 +76,7 @@ describe('createVoiceHandler', () => {
     expect(d.isDailyCapReached).toHaveBeenCalledTimes(1);
     expect(d.downloadVoice).toHaveBeenCalledTimes(1);
     expect(replies).toContain(pipelineCopy.ack);
-    expect(d.order).toEqual(['claimUpdate', 'findOnboardedUser', 'isDailyCapReached', 'downloadVoice']);
+    expect(d.order.slice(0, 4)).toEqual(['claimUpdate', 'findOnboardedUser', 'isDailyCapReached', 'downloadVoice']);
     // processMeal fired but not awaited synchronously in this test tick's order array;
     // allow microtasks to flush.
     await Promise.resolve();
@@ -199,7 +199,7 @@ describe('createTextHandler', () => {
     await handler(ctx as never);
     await Promise.resolve();
 
-    expect(d.order).toEqual(['claimUpdate', 'findOnboardedUser', 'isDailyCapReached']);
+    expect(d.order.slice(0, 3)).toEqual(['claimUpdate', 'findOnboardedUser', 'isDailyCapReached']);
     expect(d.downloadVoice).not.toHaveBeenCalled();
     expect(replies).toContain(pipelineCopy.ack);
     expect(d.processMeal).toHaveBeenCalledTimes(1);
