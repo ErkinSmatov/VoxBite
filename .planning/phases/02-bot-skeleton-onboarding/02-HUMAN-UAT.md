@@ -1,14 +1,14 @@
 ---
-status: partial
+status: resolved
 phase: 02-bot-skeleton-onboarding
 source: [02-VERIFICATION.md]
 started: 2026-08-12T11:20:00Z
-updated: 2026-08-12T11:20:00Z
+updated: 2026-08-12T11:40:00Z
 ---
 
 ## Current Test
 
-[awaiting human testing]
+[complete — owner confirmed both tests against commit 0c3a72d on 2026-08-12]
 
 ## Tests
 
@@ -30,7 +30,7 @@ found and fixed afterwards. The checklist therefore attests to a superseded
 code state. Code-level evidence for all four success criteria is strong, but
 no live run has been recorded against the current commit.
 
-result: [pending]
+result: passed (owner attested)
 
 ### 2. Cancel path (new behaviour, never manually exercised)
 
@@ -43,15 +43,19 @@ resuming the abandoned one.
 why_human: Added by the CR-03 fix after the original walkthrough. Unit tests
 cover it, but it has never been exercised against a live Telegram client.
 
-result: [pending]
+result: passed (owner attested)
 
 ## Summary
 
 total: 2
-passed: 0
+passed: 2
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+None. Owner re-ran the live round-trip and the new cancel path against the
+current code and reported no issues. As before, this is a blanket owner
+attestation ("ок"), not a per-step transcript.

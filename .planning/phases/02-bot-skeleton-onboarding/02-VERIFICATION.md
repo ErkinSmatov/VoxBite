@@ -1,7 +1,7 @@
 ---
 phase: 02-bot-skeleton-onboarding
 verified: 2026-08-12T11:05:00Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified (code-level); owner walkthrough attestation was blanket, not per-item
 overrides_applied: 0
 human_verification:
