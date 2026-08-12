@@ -18,20 +18,24 @@
     "fdc:download": "tsx scripts/index-fdc/download.ts",
     "index-fdc": "tsx scripts/index-fdc/run.ts",
     "verify-index": "tsx scripts/index-fdc/verify-index.ts",
-    "verify-matches": "tsx scripts/index-fdc/verify-matches.ts"
+    "verify-matches": "tsx scripts/index-fdc/verify-matches.ts",
+    "verify-stt": "tsx scripts/verify-stt.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ai-sdk/openai": "4.0.40",
     "@grammyjs/conversations": "2.1.1",
+    "ai": "7.0.62",
     "csv-parse": "7.0.2",
     "dotenv-safe": "9.1.0",
     "drizzle-orm": "0.45.2",
     "grammy": "1.45.1",
     "openai": "7.4.0",
-    "postgres": "3.4.9"
+    "postgres": "3.4.9",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/dotenv-safe": "9.1.0",
