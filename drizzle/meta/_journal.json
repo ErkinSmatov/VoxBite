@@ -36,6 +36,20 @@
       "when": 1786465795114,
       "tag": "0004_bot_sessions_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786534079184,
+      "tag": "0005_unique_pyro",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786534079185,
+      "tag": "0006_voice_pipeline_rls",
+      "breakpoints": true
     }
   ]
 }
