@@ -11,9 +11,15 @@
  * before session storage, before the conversations plugin, and before any
  * handler — so a rejected update never causes a session read/write or a
  * Postgres round-trip. T-02-23: the automated check in Plan 06 asserts this
- * order (allowlist -> session -> conversations -> conversation -> commands)
- * so a future handler can never accidentally be registered ahead of the
- * gate.
+ * order (allowlist -> session -> conversations -> conversation -> commands
+ * -> meal handlers) so a future handler can never accidentally be
+ * registered ahead of the gate.
+ *
+ * Security property (T-03-46): every registration in section 5 — including
+ * the voice/text/unsupported meal handlers added in Phase 3 — sits behind
+ * the section-1 allowlist gate, so a non-allowlisted user's update is
+ * dropped before it can ever reach a paid OpenAI call. This comment is the
+ * explanation; `bot.wiring.test.ts` is the enforcement.
  */
 import { Bot, session, type Context, type SessionFlavor } from 'grammy';
 import { conversations, type ConversationFlavor } from '@grammyjs/conversations';
@@ -30,6 +36,8 @@ import {
 import { questionCopy } from './formatting/onboarding-copy.js';
 import { ack } from './telegram/ack.js';
 import { createErrorHandler } from './error-handler.js';
+import { buildMealHandlerDeps } from './pipeline-wiring.js';
+import { createTextHandler, createUnsupportedHandler, createVoiceHandler } from './handlers/meal.js';
 
 export interface SessionData {
   // Empty for now — conversations own their own state via the storage
@@ -42,6 +50,8 @@ export interface BotDeps {
   db: Db;
   token: string;
   allowlist: Set<number>;
+  /** Resolved from env by src/bot/index.ts — this file still never calls loadEnv(). */
+  sttModel: string;
 }
 
 export function createBot(deps: BotDeps): Bot<BotContext> {
@@ -107,6 +117,27 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
     await ack(ctx);
     await ctx.conversation.enter(ONBOARDING_CONVERSATION_ID);
   });
+
+  // Phase 3: voice/text meal handlers, registered LAST within section 5 so
+  // commands keep winning over the text handler (a message starting with
+  // '/' is ignored by createTextHandler, but registration order still
+  // matters for grammY's dispatch). Built once at startup — never per
+  // update — via buildMealHandlerDeps (src/bot/pipeline-wiring.ts).
+  const mealDeps = buildMealHandlerDeps({
+    db: deps.db,
+    token: deps.token,
+    api: bot.api,
+    sttModel: deps.sttModel,
+  });
+  bot.on('message:voice', createVoiceHandler(mealDeps));
+  bot.on('message:text', createTextHandler(mealDeps));
+  // D-06: audio files, video notes, photos, documents, stickers and videos
+  // get a short, free refusal — one registration covering all six types
+  // rather than six separate ones.
+  bot.on(
+    ['message:audio', 'message:video_note', 'message:photo', 'message:document', 'message:sticker', 'message:video'],
+    createUnsupportedHandler(),
+  );
 
   // 6. Middleware-error handler — logs a short Russian line describing the
   // error only, never the whole update object (it contains user message text,

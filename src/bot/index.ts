@@ -22,6 +22,7 @@ import { loadEnv } from '../config/env.js';
 import { closeDb, createDb } from '../db/client.js';
 import { parseAllowlist } from './middleware/allowlist.js';
 import { createBot } from './bot.js';
+import { runStartupSweep } from './startup-sweep.js';
 
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -43,7 +44,14 @@ async function main(): Promise<void> {
     );
   }
 
-  const bot = createBot({ db, token: env.TELEGRAM_BOT_TOKEN, allowlist });
+  const bot = createBot({ db, token: env.TELEGRAM_BOT_TOKEN, allowlist, sttModel: env.STT_MODEL });
+
+  // D-11: run the interrupted-run sweep BEFORE bot.start() so any apology
+  // reaches the affected user before any newly-polled update is handled,
+  // and AWAITED (not detached) so its summary line is never interleaved
+  // into live traffic. bot.api works before polling starts — sending a
+  // message needs the token, not a running update loop.
+  await runStartupSweep({ db, notify: (chatId, text) => bot.api.sendMessage(chatId, text) });
 
   let shuttingDown = false;
   const shutdown = async (): Promise<void> => {
