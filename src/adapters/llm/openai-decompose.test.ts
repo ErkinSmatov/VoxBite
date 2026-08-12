@@ -107,8 +107,17 @@ describe('createOpenAIDecomposer', () => {
     const decomposer = createOpenAIDecomposer({ generate });
 
     await expect(decomposer.decompose('манты')).rejects.toThrow(DecompositionFailedError);
+    expect(calls.length).toBe(2);
+  });
+
+  it('DecompositionFailedError message is DECOMPOSITION_FAILED', async () => {
+    const { generate } = makeFakeGenerate([
+      { error: makeNoObjectGeneratedError() },
+      { error: makeNoObjectGeneratedError() },
+    ]);
+    const decomposer = createOpenAIDecomposer({ generate });
+
     await expect(decomposer.decompose('манты')).rejects.toThrow('DECOMPOSITION_FAILED');
-    expect(calls.length).toBe(4); // two decompose() calls above, 2 generate calls each
   });
 
   it('rethrows a non-NoObjectGeneratedError failure immediately without a second generate call', async () => {
