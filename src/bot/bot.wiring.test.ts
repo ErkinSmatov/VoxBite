@@ -24,7 +24,11 @@ function botSource(): string {
 describe('bot.ts registration order (D-05 / T-02-23)', () => {
   it('registers allowlist -> session -> conversations', () => {
     const source = botSource();
-    const allowlist = source.indexOf('createAllowlistMiddleware');
+    // Use the actual bot.use(createAllowlistMiddleware(...)) call site, not
+    // just any occurrence of the identifier — the import declaration also
+    // contains this string and always precedes every registration, which
+    // would make this assertion pass even if the bot.use(...) call moved.
+    const allowlist = source.indexOf('bot.use(createAllowlistMiddleware(');
     const sessionCall = source.indexOf('session(');
     const conversation = source.indexOf('createConversation');
 
@@ -35,6 +39,51 @@ describe('bot.ts registration order (D-05 / T-02-23)', () => {
 
   it('never starts the bot', () => {
     expect(botSource()).not.toMatch(/bot\.start\(/);
+  });
+});
+
+describe('bot.ts Phase 3 meal-handler registrations (T-03-46 / T-03-44)', () => {
+  it('registers every bot.on/bot.command/bot.callbackQuery call after createAllowlistMiddleware', () => {
+    const source = botSource();
+    // The literal string 'createAllowlistMiddleware' also appears in the
+    // import declaration near the top of the file, which is always earlier
+    // than every registration regardless of where bot.use(...) actually sits
+    // — asserting against that index would never fail. The load-bearing
+    // fact is the position of the CALL, bot.use(createAllowlistMiddleware(...)).
+    const allowlistIndex = source.indexOf('bot.use(createAllowlistMiddleware(');
+    expect(allowlistIndex).toBeGreaterThanOrEqual(0);
+
+    const registrationIndices = [...source.matchAll(/bot\.(on|command|callbackQuery|hears)\(/g)].map(
+      (m) => m.index,
+    );
+    expect(registrationIndices.length).toBeGreaterThan(0);
+    for (const index of registrationIndices) {
+      expect(index).toBeGreaterThan(allowlistIndex);
+    }
+  });
+
+  it("registers 'message:voice' and 'message:text'", () => {
+    const source = botSource();
+    expect(source).toContain("'message:voice'");
+    expect(source).toContain("'message:text'");
+  });
+
+  it('registers all six unsupported content-type filters', () => {
+    const source = botSource();
+    expect(source).toContain("'message:audio'");
+    expect(source).toContain("'message:video_note'");
+    expect(source).toContain("'message:photo'");
+    expect(source).toContain("'message:document'");
+    expect(source).toContain("'message:sticker'");
+    expect(source).toContain("'message:video'");
+  });
+
+  it('constructs the meal handler deps via buildMealHandlerDeps', () => {
+    const source = botSource();
+    expect(source).toContain('buildMealHandlerDeps');
+    expect(source).toContain('createVoiceHandler');
+    expect(source).toContain('createTextHandler');
+    expect(source).toContain('createUnsupportedHandler');
   });
 });
 
