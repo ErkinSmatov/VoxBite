@@ -42,7 +42,12 @@ import {
   isDailyCapReached as isDailyCapReachedReal,
 } from '../../application/limits.js';
 import { processMeal as processMealReal, type PipelineDeps } from '../../application/voice-pipeline.js';
-import { downloadVoice as downloadVoiceReal, VoiceTooLongError } from '../telegram/download-voice.js';
+import {
+  downloadVoice as downloadVoiceReal,
+  VoiceDownloadTimeoutError,
+  VoiceTooLargeError,
+  VoiceTooLongError,
+} from '../telegram/download-voice.js';
 import { pipelineCopy } from '../formatting/pipeline-copy.js';
 
 /** Text meals are bounded the same way a voice's duration is (D-14's text-side twin). */
@@ -112,8 +117,13 @@ export function createVoiceHandler(d: MealHandlerDeps) {
     try {
       audio = await downloadVoice(ctx, d.token);
     } catch (err) {
-      if (err instanceof VoiceTooLongError) {
+      if (err instanceof VoiceTooLongError || err instanceof VoiceTooLargeError) {
+        // CR-02: a client that lies about `duration` to slip past the free
+        // cap lands on VoiceTooLargeError instead. Same refusal to the user —
+        // the distinction only matters to us, not to them.
         await ctx.reply(pipelineCopy.tooLong);
+      } else if (err instanceof VoiceDownloadTimeoutError) {
+        await ctx.reply(pipelineCopy.sttFailed);
       } else {
         await ctx.reply(pipelineCopy.internalError);
       }

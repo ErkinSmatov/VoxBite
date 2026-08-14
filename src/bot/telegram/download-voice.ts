@@ -23,11 +23,47 @@
  */
 import { MAX_VOICE_SECONDS } from '../../adapters/stt/types.js';
 
+/**
+ * Byte ceiling for a voice message (CR-02).
+ *
+ * MAX_VOICE_SECONDS of Telegram OPUS voice is roughly 16 kbit/s, so 60s is
+ * on the order of 120 KB. 1 MB leaves a wide margin for higher-bitrate
+ * clients while still making it impossible for a client that lies about
+ * `duration` to hand OpenAI a multi-megabyte file to bill us for.
+ */
+export const MAX_VOICE_BYTES = 1024 * 1024;
+
+/** Wall-clock ceiling on the download itself, so a stalled fetch cannot pin a slot forever. */
+export const DOWNLOAD_TIMEOUT_MS = 30_000;
+
 /** Thrown when a voice message's own `duration` field exceeds MAX_VOICE_SECONDS (D-14). */
 export class VoiceTooLongError extends Error {
   constructor(durationSeconds: number) {
     super(`Голосовое длиннее ${MAX_VOICE_SECONDS} секунд (получено ${durationSeconds}с)`);
     this.name = 'VoiceTooLongError';
+  }
+}
+
+/**
+ * Thrown when the audio is too large in BYTES (CR-02).
+ *
+ * `duration` is a client-supplied `sendVoice` parameter, not something
+ * Telegram measures, so the free duration cap above can be lied about. This
+ * is the cap that actually bounds what OpenAI bills us for, since OpenAI
+ * charges by the real audio length regardless of what the client claimed.
+ */
+export class VoiceTooLargeError extends Error {
+  constructor(bytes: number) {
+    super(`Голосовое больше ${MAX_VOICE_BYTES} байт (получено ${bytes})`);
+    this.name = 'VoiceTooLargeError';
+  }
+}
+
+/** Thrown when the download exceeds DOWNLOAD_TIMEOUT_MS. */
+export class VoiceDownloadTimeoutError extends Error {
+  constructor() {
+    super(`Скачивание голосового превысило ${DOWNLOAD_TIMEOUT_MS} мс`);
+    this.name = 'VoiceDownloadTimeoutError';
   }
 }
 
@@ -45,7 +81,7 @@ export interface VoiceDownloadContext {
       duration: number;
     };
   };
-  getFile(): Promise<{ file_path?: string }>;
+  getFile(): Promise<{ file_path?: string; file_size?: number }>;
 }
 
 /**
@@ -69,15 +105,49 @@ export async function downloadVoice(ctx: VoiceDownloadContext, token: string): P
     throw new VoiceUnavailableError();
   }
 
+  // CR-02: getFile() reports Telegram's own measured size. Reject oversized
+  // audio here — still before the download and before any paid call — because
+  // the duration cap above trusts a number the sending client chose.
+  if (typeof file.file_size === 'number' && file.file_size > MAX_VOICE_BYTES) {
+    throw new VoiceTooLargeError(file.file_size);
+  }
+
   // The URL below embeds the bot token — never log it, never include it in
   // an error message, never attach it to an error object.
   const url = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
-  const response = await fetch(url);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new VoiceDownloadTimeoutError();
+    }
+    // Never re-throw the original error: its message can contain the
+    // token-bearing URL.
+    throw new Error('Не удалось скачать голосовое сообщение');
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (!response.ok) {
     // Only the numeric status code is surfaced — the URL/token never is.
     throw new Error(`Не удалось скачать голосовое сообщение: HTTP ${response.status}`);
   }
 
+  // Second byte gate: file_size may be absent, and a Content-Length header is
+  // only a claim, so the buffered result is checked against the same ceiling.
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > MAX_VOICE_BYTES) {
+    throw new VoiceTooLargeError(declared);
+  }
+
   const arrayBuffer = await response.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_VOICE_BYTES) {
+    throw new VoiceTooLargeError(arrayBuffer.byteLength);
+  }
+
   return Buffer.from(arrayBuffer); // never written to disk; handed directly to the STT adapter
 }
