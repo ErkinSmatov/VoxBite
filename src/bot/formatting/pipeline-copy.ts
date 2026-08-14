@@ -48,6 +48,14 @@ export const pipelineCopy = {
   tooLong: 'Голосовое слишком длинное. Опиши покороче, до 60 секунд.',
 
   /**
+   * Text-side twin of `tooLong`. Refusing beats silently truncating: a
+   * truncated description is analysed as if it were the whole meal, so the
+   * user gets a confidently wrong answer with no hint that half their food
+   * was dropped.
+   */
+  textTooLong: 'Сообщение слишком длинное. Опиши приём пищи покороче, до 1000 символов.',
+
+  /**
    * D-15 — friendly framing as a runaway-processing safety limit, explicitly
    * not a paid tariff (tariff limits are v2). States that it resets.
    */

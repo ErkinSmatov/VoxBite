@@ -190,8 +190,14 @@ export function createTextHandler(d: MealHandlerDeps) {
     }
 
     // Bound the text length before it reaches the LLM — the text-side twin
-    // of D-14's voice duration cap.
-    const boundedText = text.length > MAX_TEXT_LENGTH ? text.slice(0, MAX_TEXT_LENGTH) : text;
+    // of D-14's voice duration cap. Refuse rather than truncate: analysing
+    // the first MAX_TEXT_LENGTH characters of a longer description silently
+    // drops food the user listed and returns a confidently wrong result.
+    if (text.length > MAX_TEXT_LENGTH) {
+      await ctx.reply(pipelineCopy.textTooLong);
+      await markUpdateStatus(d.db, updateId, 'done');
+      return;
+    }
 
     // 4. Ack.
     const ack = await ctx.reply(pipelineCopy.ack);
@@ -203,7 +209,7 @@ export function createTextHandler(d: MealHandlerDeps) {
       userId: user.id,
       chatId,
       ackMessageId: ack.message_id,
-      input: { kind: 'text', text: boundedText },
+      input: { kind: 'text', text },
     }).catch((err) => {
       console.error(`meal handler: processMeal rejected for update ${updateId} (${err instanceof Error ? err.message : 'unknown error'})`);
     });

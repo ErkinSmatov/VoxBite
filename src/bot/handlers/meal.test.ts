@@ -219,18 +219,34 @@ describe('createTextHandler', () => {
     expect(d.processMeal).not.toHaveBeenCalled();
   });
 
-  it('truncates text longer than MAX_TEXT_LENGTH before reaching processMeal', async () => {
+  // Previously this truncated to MAX_TEXT_LENGTH and analysed the prefix.
+  // That silently dropped food the user had listed and returned a
+  // confidently wrong result, so overlong text is now refused outright.
+  it('refuses text longer than MAX_TEXT_LENGTH instead of truncating it', async () => {
     const longText = 'а'.repeat(MAX_TEXT_LENGTH + 500);
     const d = makeDeps();
     const handler = createTextHandler(d as never);
-    const { ctx } = makeCtx({ telegramId: 1, chatId: 2, text: longText });
+    const { ctx, replies } = makeCtx({ telegramId: 1, chatId: 2, text: longText });
+
+    await handler(ctx as never);
+    await Promise.resolve();
+
+    expect(replies).toContain(pipelineCopy.textTooLong);
+    expect(d.processMeal).not.toHaveBeenCalled();
+    expect(replies).not.toContain(pipelineCopy.ack);
+  });
+
+  it('accepts text exactly at MAX_TEXT_LENGTH and passes it through whole', async () => {
+    const text = 'а'.repeat(MAX_TEXT_LENGTH);
+    const d = makeDeps();
+    const handler = createTextHandler(d as never);
+    const { ctx } = makeCtx({ telegramId: 1, chatId: 2, text });
 
     await handler(ctx as never);
     await Promise.resolve();
 
     const call = (d.processMeal as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    const passedText = (call[1].input as { text: string }).text;
-    expect(passedText.length).toBeLessThanOrEqual(MAX_TEXT_LENGTH);
+    expect((call[1].input as { text: string }).text).toBe(text);
   });
 
   it('claimUpdate returning false: returns immediately with no reply', async () => {
