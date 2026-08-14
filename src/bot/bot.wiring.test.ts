@@ -1,6 +1,11 @@
 /**
  * Static assertions about the composition root.
  *
+ * NOTE: source-text order is a cheap tripwire, NOT proof of runtime order.
+ * The binding proof that no handler can run before the allowlist gate lives
+ * in `bot.wiring.runtime.test.ts`, which records the actual sequence of
+ * registration calls `createBot()` makes.
+ *
  * `createBot()` is not called here on purpose: constructing a `Bot` needs a
  * token, and the properties worth protecting are registration facts, not
  * runtime behaviour. This mirrors the check Plan 02-06 runs as its
@@ -30,7 +35,12 @@ describe('bot.ts registration order (D-05 / T-02-23)', () => {
     // would make this assertion pass even if the bot.use(...) call moved.
     const allowlist = source.indexOf('bot.use(createAllowlistMiddleware(');
     const sessionCall = source.indexOf('session(');
-    const conversation = source.indexOf('createConversation');
+    // Match the CALL SITE, not the identifier: the import declaration also
+    // contains this string. Matching the bare identifier is what previously
+    // forced the import to be written halfway down bot.ts. The call is
+    // generic (`createConversation<BotContext, BotContext>(`), so allow
+    // either an immediate `(` or a type-argument list first.
+    const conversation = source.search(/createConversation\s*[<(]/);
 
     expect(allowlist).toBeGreaterThanOrEqual(0);
     expect(allowlist).toBeLessThan(sessionCall);

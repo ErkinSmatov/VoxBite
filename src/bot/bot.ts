@@ -22,7 +22,7 @@
  * explanation; `bot.wiring.test.ts` is the enforcement.
  */
 import { Bot, session, type Context, type SessionFlavor } from 'grammy';
-import { conversations, type ConversationFlavor } from '@grammyjs/conversations';
+import { conversations, createConversation, type ConversationFlavor } from '@grammyjs/conversations';
 import type { Db } from '../db/client.js';
 import { createAllowlistMiddleware } from './middleware/allowlist.js';
 import { createPgStorageAdapter } from './storage/pg-storage-adapter.js';
@@ -148,12 +148,3 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
 
   return bot;
 }
-
-// Imported here rather than in the top import block, deliberately: this
-// keeps the literal string "createConversation" textually after both the
-// allowlist gate and the `session(` registration above, matching the
-// runtime registration order this file enforces (D-05, T-02-23). ESM import
-// declarations are hoisted regardless of their position in the file, so
-// this has no effect on behavior — see `session(` at step 2 and
-// `createAllowlistMiddleware` at step 1 above.
-import { createConversation } from '@grammyjs/conversations';
