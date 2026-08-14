@@ -8,3 +8,5 @@ export { calculateTargetMacros } from './target-macros';
 export type { TargetMacrosResult } from './target-macros';
 export { calculateNutritionTargets } from './calculate-targets';
 export type { ActivityLevel, Goal, NutritionProfile, NutritionTargets, Sex } from './types';
+export { calculateTotal } from './calculate-total';
+export type { NutrientTotal, TotalInputItem } from './calculate-total';
