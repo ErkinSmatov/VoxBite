@@ -1,9 +1,9 @@
 ---
 phase: 4
 slug: confirm-correct-diary-persistence
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-08-14
 ---
 
@@ -37,26 +37,26 @@ created: 2026-08-14
 
 ## Per-Task Verification Map
 
-Task IDs are assigned by the planner; rows below are the requirement-level contract each
-task must map onto. Every task claiming one of these requirements MUST carry the listed
-automated command in its `<automated>` verification.
+Filled in after planning. Every row below is owned by a real task in the named plan and
+carries the listed automated command in its `<automated>` verification. Status stays
+`pending` until execution turns each one green.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | CORRECT-01 | — | N/A | unit | `npx vitest run src/bot/formatting/correction-card.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-02 | T-04-IDOR | Draft read scoped by `user_id` | unit | `npx vitest run src/application/confirm-meal.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-03 | T-04-IDOR | Swap scoped by `user_id` | unit | `npx vitest run src/application/corrections.test.ts -t swapCandidate` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-04 | T-04-INPUT | Typed grams rejects non-numeric/≤0 | unit | `npx vitest run src/application/corrections.test.ts -t adjustGrams` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-05 | — | Empty-state rule (D-12) | unit | `npx vitest run src/application/corrections.test.ts -t removeComponent` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-06 | T-04-INPUT | Added-component text length-bounded before embedding call | unit | `npx vitest run src/application/corrections.test.ts -t addComponent` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-07 | — | No in-process draft state | unit + manual restart | `npx vitest run src/application/draft-store.test.ts` | ❌ W0 (extend) | ⬜ pending |
-| TBD | TBD | TBD | CORRECT-08 | T-04-DELETE | Confirm-before-delete on saved entry | unit | `npx vitest run src/application/confirm-meal.test.ts -t editSaved` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CALC-01 | — | No LLM in calc path | unit | `npx vitest run src/domain/nutrition/calculate-total.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | CALC-02 | — | Null nutrient never becomes 0 | unit | `npx vitest run src/domain/nutrition/calculate-total.test.ts -t partial` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | DIARY-01 | — | `local_date` frozen at receipt (D-07) | unit (fake clock) | `npx vitest run src/application/local-date.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | D-04 (text routing gate) | T-04-ROUTE | Correction interceptor precedes Phase 3 text handler, after allowlist gate | unit | `npx vitest run src/bot/handlers/correction.test.ts src/bot/bot.wiring.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | D-08 (hard delete) | T-04-DELETE | Row removed only after explicit confirm | unit | `npx vitest run src/application/confirm-meal.test.ts -t delete` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | D-11 (24h expiry) | T-04-REPLAY | Stale draft rejects button taps | unit (fake clock) | `npx vitest run src/application/draft-store.test.ts -t expire` | ❌ W0 (extend) | ⬜ pending |
+| 04-06 T1 | 06 | 2 | CORRECT-01 | — | N/A | unit | `npx vitest run src/bot/formatting/correction-card.test.ts` | created by 04-06 T1 | ⬜ pending |
+| 04-08 T1 | 08 | 3 | CORRECT-02 | T-04-IDOR | Draft read scoped by `user_id` | unit | `npx vitest run src/application/confirm-meal.test.ts` | created by 04-08 T1 | ⬜ pending |
+| 04-07 T1 | 07 | 3 | CORRECT-03 | T-04-IDOR | Swap scoped by `user_id` | unit | `npx vitest run src/application/corrections.test.ts -t swapCandidate` | created by 04-07 T1 | ⬜ pending |
+| 04-07 T1 | 07 | 3 | CORRECT-04 | T-04-INPUT | Typed grams rejects non-numeric/≤0 | unit | `npx vitest run src/application/corrections.test.ts -t adjustGrams` | created by 04-07 T1 | ⬜ pending |
+| 04-07 T2 | 07 | 3 | CORRECT-05 | — | Empty-state rule (D-12) | unit | `npx vitest run src/application/corrections.test.ts -t removeComponent` | created by 04-07 T2 | ⬜ pending |
+| 04-07 T2 | 07 | 3 | CORRECT-06 | T-04-INPUT | Added-component text length-bounded before embedding call | unit | `npx vitest run src/application/corrections.test.ts -t addComponent` | created by 04-07 T2 | ⬜ pending |
+| 04-04 T3 | 04 | 2 | CORRECT-07 | — | No in-process draft state | unit + manual restart | `npx vitest run src/application/draft-store.test.ts` | created by 04-04 T3 (extend) | ⬜ pending |
+| 04-08 T2 | 08 | 3 | CORRECT-08 | T-04-DELETE | Confirm-before-delete on saved entry | unit | `npx vitest run src/application/confirm-meal.test.ts -t editSaved` | created by 04-08 T2 | ⬜ pending |
+| 04-02 T1 | 02 | 1 | CALC-01 | — | No LLM in calc path | unit | `npx vitest run src/domain/nutrition/calculate-total.test.ts` | created by 04-02 T1 | ⬜ pending |
+| 04-02 T1 | 02 | 1 | CALC-02 | — | Null nutrient never becomes 0 | unit | `npx vitest run src/domain/nutrition/calculate-total.test.ts -t partial` | created by 04-02 T1 | ⬜ pending |
+| 04-02 T2 | 02 | 1 | DIARY-01 | — | `local_date` frozen at receipt (D-07) | unit (fake clock) | `npx vitest run src/application/local-date.test.ts` | created by 04-02 T2 | ⬜ pending |
+| 04-10 T1 | 10 | 5 | D-04 (text routing gate) | T-04-ROUTE | Correction interceptor precedes Phase 3 text handler, after allowlist gate | unit | `npx vitest run src/bot/handlers/correction.test.ts src/bot/bot.wiring.test.ts` | created by 04-10 T1 | ⬜ pending |
+| 04-08 T2 | 08 | 3 | D-08 (hard delete) | T-04-DELETE | Row removed only after explicit confirm | unit | `npx vitest run src/application/confirm-meal.test.ts -t delete` | created by 04-08 T2 | ⬜ pending |
+| 04-04 T3 | 04 | 2 | D-11 (24h expiry) | T-04-REPLAY | Stale draft rejects button taps | unit (fake clock) | `npx vitest run src/application/draft-store.test.ts -t expire` | created by 04-04 T3 (extend) | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -64,14 +64,14 @@ automated command in its `<automated>` verification.
 
 ## Wave 0 Requirements
 
-- [ ] `src/domain/nutrition/calculate-total.test.ts` — stubs for CALC-01, CALC-02, D-09
-- [ ] `src/application/corrections.test.ts` — stubs for CORRECT-03..06
-- [ ] `src/application/confirm-meal.test.ts` — stubs for CORRECT-02, CORRECT-08, D-08
-- [ ] `src/application/local-date.test.ts` — stubs for DIARY-01, D-07
-- [ ] `src/bot/formatting/correction-card.test.ts` — stubs for CORRECT-01, D-02/D-03/D-09 rendering
-- [ ] `src/bot/handlers/correction.test.ts` — stubs for D-04 text-routing gate
-- [ ] Extend `src/application/draft-store.test.ts` — CORRECT-07 persistence, D-11 expiry
-- [ ] Extend `src/bot/bot.wiring.test.ts` — registration order of correction callback/text handlers
+- [ ] `src/domain/nutrition/calculate-total.test.ts` *(owned by 04-02 T1)* — stubs for CALC-01, CALC-02, D-09
+- [ ] `src/application/corrections.test.ts` *(owned by 04-07 T1/T2)* — stubs for CORRECT-03..06
+- [ ] `src/application/confirm-meal.test.ts` *(owned by 04-08 T1/T2)* — stubs for CORRECT-02, CORRECT-08, D-08
+- [ ] `src/application/local-date.test.ts` *(owned by 04-02 T2)* — stubs for DIARY-01, D-07
+- [ ] `src/bot/formatting/correction-card.test.ts` *(owned by 04-06 T1)* — stubs for CORRECT-01, D-02/D-03/D-09 rendering
+- [ ] `src/bot/handlers/correction.test.ts` *(owned by 04-09 T2)* — stubs for D-04 text-routing gate
+- [ ] Extend `src/application/draft-store.test.ts` *(owned by 04-04 T3)* — CORRECT-07 persistence, D-11 expiry
+- [ ] Extend `src/bot/bot.wiring.test.ts` *(owned by 04-10 T3)* — registration order of correction callback/text handlers
 - No framework install needed — Vitest already configured.
 
 ---
@@ -88,11 +88,11 @@ automated command in its `<automated>` verification.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-08-14 (plan-check verified)

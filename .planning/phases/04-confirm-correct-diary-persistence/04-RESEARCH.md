@@ -424,9 +424,12 @@ export async function safeEditMessageText(
 | A2 | A plain conditional `UPDATE ... WHERE status='draft' RETURNING id` is sufficient compare-and-swap protection for the confirm/delete double-tap race, without a dedicated `version` column | Common Pitfalls / Pitfall 3 | If Postgres's read-committed isolation somehow allows two concurrent UPDATEs to both see `status='draft'` as true before either commits (it should not, under standard MVCC row-level locking — this is a well-established Postgres guarantee, not project-specific), a duplicate diary row could still occur. This is standard Postgres behavior [VERIFIED conceptually against well-known Postgres MVCC semantics, but not tested against this project's actual Supabase-managed instance in this session]. |
 | A3 | `Intl.DateTimeFormat` with `timeZone` correctly resolves `Asia/Almaty` (and any other IANA zone a user might set) on the owner's actual deployment target, not just the research sandbox | Don't Hand-Roll / Code Examples | Verified locally in this session's environment (Node process available via Bash), which uses the ICU data bundled with the installed Node binary. If the deployment target's Node build lacks full ICU (`small-icu` builds sometimes ship without full timezone data), the same code could silently misbehave. Node.js official pre-built binaries ship full ICU by default since Node 13 — risk is low but the planner should have the owner spot-check `node -e "console.log(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Almaty'}).format(new Date()))"` on the actual deploy target once it's decided, not just locally. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact `diary_drafts` schema evolution shape** (explicitly left to the planner in
+> Both questions below were resolved during planning: the plans adopted each
+> recommendation verbatim (04-01 for the schema shape, 04-02/04-06 for rounding).
+
+1. **RESOLVED: Exact `diary_drafts` schema evolution shape** (explicitly left to the planner in
    CONTEXT.md's Claude's Discretion)
    - What we know: needs `awaiting_input` state (D-04: what input is expected, for which
      component, on which draft), `local_date` (D-07, frozen), a link to the `diary` row once
@@ -447,7 +450,7 @@ export async function safeEditMessageText(
      by D-06's "one correction code path" requirement needing to find "the draft for this
      diary row" starting from either object depending on which button was tapped.
 
-2. **Rounding display convention for the D-09 partial-total line**
+2. **RESOLVED: Rounding display convention for the D-09 partial-total line**
    - What we know: the shape is `≥ 12 г (у 1 из 5 нет данных)`; components' individual grams
      are already `Math.round()`-ed for display in `result-card.ts`.
    - What's unclear: whether the total itself should round to the nearest integer or show one
