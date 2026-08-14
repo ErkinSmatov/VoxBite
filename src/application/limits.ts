@@ -49,11 +49,21 @@ export async function countRecentUpdates(db: Db, telegramId: number, windowHours
 }
 
 /**
- * `true` once `telegramId` has sent `DAILY_MESSAGE_CAP` or more messages in
- * the trailing 24 hours. Fails open (`false`) if the count query itself
- * throws -- see module doc comment. The catch logs one fixed Russian
- * operator line naming only the failure kind, never the telegram id or any
- * message content, matching `src/bot/error-handler.ts`'s logging invariant.
+ * `true` once `telegramId` has exceeded `DAILY_MESSAGE_CAP` messages in the
+ * trailing 24 hours.
+ *
+ * ORDERING INVARIANT (CR-02 follow-up): every caller runs `claimUpdate()`
+ * FIRST, so the message being judged right now is ALREADY one of the rows
+ * this count returns. On the Nth message of the window the count is N, which
+ * is why the comparison is `>` and not `>=`. With `>=` the user was cut off
+ * after DAILY_MESSAGE_CAP - 1 processed messages -- an effective cap of 29
+ * against a declared 30. Do not "fix" this to `>=` without also moving the
+ * claim after the count.
+ *
+ * Fails open (`false`) if the count query itself throws -- see module doc
+ * comment. The catch logs one fixed Russian operator line naming only the
+ * failure kind, never the telegram id or any message content, matching
+ * `src/bot/error-handler.ts`'s logging invariant.
  */
 export async function isDailyCapReached(db: Db, telegramId: number): Promise<boolean> {
   let recentCount: number;
@@ -64,7 +74,7 @@ export async function isDailyCapReached(db: Db, telegramId: number): Promise<boo
     return false;
   }
 
-  return recentCount >= DAILY_MESSAGE_CAP;
+  return recentCount > DAILY_MESSAGE_CAP;
 }
 
 /**

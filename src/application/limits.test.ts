@@ -151,8 +151,18 @@ describe('isDailyCapReached', () => {
     expect(await isDailyCapReached(db as any, 10)).toBe(false);
   });
 
-  it('returns true when the count equals the cap', async () => {
+  // The caller claims the current update BEFORE counting, so on the user's
+  // Nth message of the window the count is already N. A count equal to the
+  // cap therefore means "this is message number DAILY_MESSAGE_CAP" — which
+  // must still be allowed, or the effective cap is DAILY_MESSAGE_CAP - 1.
+  it('returns false when the count equals the cap — that message is the last allowed one', async () => {
     const { db } = makeFakeDb({ updateRows: rowsAt(DAILY_MESSAGE_CAP) });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(await isDailyCapReached(db as any, 10)).toBe(false);
+  });
+
+  it('returns true one past the cap', async () => {
+    const { db } = makeFakeDb({ updateRows: rowsAt(DAILY_MESSAGE_CAP + 1) });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(await isDailyCapReached(db as any, 10)).toBe(true);
   });
