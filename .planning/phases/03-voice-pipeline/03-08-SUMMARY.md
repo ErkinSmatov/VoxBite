@@ -58,7 +58,7 @@ completed: 2026-08-13
 ## Performance
 
 - **Duration:** ~55 min (including `npm install` for this worktree's isolated `node_modules`)
-- **Tasks:** 3 of 4 completed (Tasks 1-3, all `type="auto"`); Task 4 is a blocking `checkpoint:human-verify` requiring the owner to run `npm run bot` and a real Telegram exchange — not run by this executor
+- **Tasks:** 4 of 4 completed. Tasks 1-3 (`type="auto"`) were executed by the executor; Task 4 was a blocking `checkpoint:human-verify` — the owner ran `npm run bot` and the nine-step real-Telegram smoke check and approved the result to the orchestrator.
 - **Files created:** 4
 - **Files modified:** 6
 
@@ -111,12 +111,12 @@ None of the three tasks were marked `tdd="true"` in the plan (all `type="auto"`)
 
 ## User Setup Required
 
-**Task 4 (checkpoint, not run by this executor) requires the owner to:**
+**Task 4 (checkpoint) — DONE. The owner performed and approved:**
 1. Run `npm run check-setup` from the project root and confirm the last line is `SETUP OK`.
 2. Run `npm run bot` and confirm the startup log lines described below.
 3. Send a real voice message, a real text message, an unsupported message type (photo/video note), and interrupt-and-restart the bot, following the nine numbered steps in `03-08-PLAN.md`'s Task 4 `<how-to-verify>` block.
 
-This step costs real money (roughly a few cents total, per the plan) and requires a live Telegram bot token and OpenAI API key already configured in `.env` from Phase 1/2 — no new setup beyond what the owner already has, but it is the first time this phase's code makes a real paid call.
+This step cost real money (roughly a few cents total, per the plan) and used the live Telegram bot token and OpenAI API key already configured in `.env` from Phase 1/2. It was the first time this phase's code made a real paid call. The owner reported all nine steps behaved as specified and replied "approved" — recorded by the orchestrator, which did not itself run the bot or spend the owner's API budget.
 
 ## Known Stubs
 
@@ -152,12 +152,12 @@ No new network endpoints, auth paths, or trust-boundary surface introduced beyon
 
 ## Next Phase Readiness
 
-- Tasks 1-3 are complete, committed, and green. Task 4 — the owner's real end-to-end Telegram smoke check — is the only remaining item in this plan and in Phase 3, and requires the owner's own action (see checkpoint below).
-- No blockers for the code itself; the checkpoint is a manual-verification gate, not a code defect.
+- All four tasks are complete. Tasks 1-3 are committed and green; Task 4, the owner's real end-to-end Telegram smoke check, was performed by the owner and approved.
+- No blockers. The live chain — voice and text in, ack edited in place into a result card, unsupported types refused for free, interrupted runs swept on restart — is confirmed working against real Telegram and real OpenAI.
 
 ---
 *Phase: 03-voice-pipeline*
-*Completed: 2026-08-13 (Tasks 1-3; Task 4 pending owner verification)*
+*Completed: 2026-08-13 (Tasks 1-3); Task 4 verified and approved by the owner 2026-08-14*
 
 ## Self-Check: PASSED
 
