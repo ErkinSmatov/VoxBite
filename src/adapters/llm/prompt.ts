@@ -35,6 +35,8 @@ const BASE_INSTRUCTIONS = `Ты помогаешь распознать, что 
 {{TRANSCRIPT}}
 """`;
 
+const PLACEHOLDER = '{{TRANSCRIPT}}';
+
 const STRICT_SUFFIX = `
 
 Предыдущая попытка не прошла проверку: ответ не соответствовал требуемой схеме JSON. Это вторая и последняя попытка. Верни ТОЛЬКО валидный JSON, строго соответствующий схеме, без пояснений и без лишнего текста.`;
@@ -44,6 +46,13 @@ const STRICT_SUFFIX = `
  * (never duplicates it) so the two versions cannot drift apart.
  */
 export function buildDecompositionPrompt(transcript: string, strict: boolean): string {
-  const base = BASE_INSTRUCTIONS.replace('{{TRANSCRIPT}}', transcript);
+  // Split-and-join, never String.replace(). The replacement argument of
+  // .replace() interprets `$&`, `` $` ``, `$'` and `$1` as substitution
+  // patterns, so a transcript containing any of them would splice pieces of
+  // this very template into itself and escape the """ fencing above.
+  // The transcript is user-controlled (the text handler passes typed input
+  // through verbatim), so it must only ever be concatenated as literal text.
+  const [before, after] = BASE_INSTRUCTIONS.split(PLACEHOLDER);
+  const base = `${before ?? ''}${transcript}${after ?? ''}`;
   return strict ? base + STRICT_SUFFIX : base;
 }

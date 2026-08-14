@@ -62,4 +62,33 @@ describe('buildDecompositionPrompt', () => {
     expect(before).toMatch(/["'`]{3}|---|<transcript>|###/i);
     expect(after).toMatch(/["'`]{3}|---|<\/transcript>|###/i);
   });
+
+  // Regression guard for CR-01. The prompt used to be assembled with
+  // BASE_INSTRUCTIONS.replace('{{TRANSCRIPT}}', transcript), and the
+  // replacement argument of String.replace treats `$\`` / `$'` / `$&` as
+  // substitution patterns. A user typing any of them spliced parts of the
+  // template into the prompt and broke out of the """ fencing.
+  it.each([
+    ['dollar-backtick', 'съел банан $` и ещё'],
+    ['dollar-quote', "съел банан $' и ещё"],
+    ['dollar-ampersand', 'съел банан $& и ещё'],
+    ['dollar-group', 'съел банан $1 и ещё'],
+    ['all at once', "$`$'$&$1$$"],
+  ])('inserts a transcript containing %s literally, without substitution (CR-01)', (_name, transcript) => {
+    const prompt = buildDecompositionPrompt(transcript, false);
+
+    // The transcript survives verbatim...
+    expect(prompt).toContain(transcript);
+
+    // ...and appears exactly once, still inside the fence.
+    const idx = prompt.indexOf(transcript);
+    expect(prompt.indexOf(transcript, idx + 1)).toBe(-1);
+    const after = prompt.slice(idx + transcript.length);
+    expect(after).toMatch(/["'`]{3}/);
+
+    // The placeholder is fully consumed and no fragment of the template
+    // got spliced in by a substitution pattern.
+    expect(prompt).not.toContain('{{TRANSCRIPT}}');
+    expect(prompt.match(/Текст для анализа/g)?.length ?? 0).toBe(1);
+  });
 });
