@@ -508,3 +508,105 @@ describe('processMeal', () => {
     expect(editor.calls[0]?.messageId).toBe(999);
   });
 });
+
+/**
+ * Regression guards for the code-review warnings on cost visibility and on
+ * clobbering an already-delivered result card.
+ */
+describe('processMeal failure accounting', () => {
+  function costLines(spy: { mock: { calls: unknown[][] } }): string[] {
+    return spy.mock.calls
+      .map((c: unknown[]) => String(c[0]))
+      .filter((l: string) => l.includes('итого'));
+  }
+
+  it('logs a cost line when STT fails, so a repeatedly failing user is not invisible spend', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const transcriber = fakeTranscriber(new Error('stt exploded'));
+    const decomposer = fakeDecomposer(decompositionResult([]));
+    const editor = fakeEditor();
+    const db = fakeDb();
+    const deps: PipelineDeps = {
+      db: db as never,
+      transcriber,
+      decomposer,
+      embedder: fakeEmbedder(),
+      repo: fakeRepo([]),
+      editor,
+    };
+
+    await processMeal(deps, baseArgs({ input: { kind: 'voice', audio: Buffer.from('x'), durationSeconds: 4 } }));
+
+    expect(editor.calls.at(-1)?.text).toBe(pipelineCopy.sttFailed);
+    const lines = costLines(logSpy);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('LLM: не вызывалась');
+    // Never any user content on a cost line.
+    expect(lines[0]).not.toContain('банан');
+
+    vi.restoreAllMocks();
+  });
+
+  it('logs a cost line when decomposition fails, since STT was already paid for', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const decomposer = fakeDecomposer(new DecompositionFailedError());
+    const editor = fakeEditor();
+    const deps: PipelineDeps = {
+      db: fakeDb() as never,
+      transcriber: fakeTranscriber({ text: 'что-то', model: 'gpt-4o-mini-transcribe', usage: {} }),
+      decomposer,
+      embedder: fakeEmbedder(),
+      repo: fakeRepo([]),
+      editor,
+    };
+
+    await processMeal(deps, baseArgs({ input: { kind: 'voice', audio: Buffer.from('x'), durationSeconds: 6 } }));
+
+    expect(editor.calls.at(-1)?.text).toBe(pipelineCopy.decompositionFailed);
+    const lines = costLines(logSpy);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('STT:');
+
+    vi.restoreAllMocks();
+  });
+
+  it('does NOT overwrite a delivered result card when a later step fails', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const editor = fakeEditor();
+    // markUpdateStatus('done') is the step after the card is delivered.
+    // Make the db's update chain throw to simulate a hiccup at that point.
+    const db = fakeDb();
+    const brokenDb = {
+      ...db,
+      update() {
+        throw new Error('db hiccup after delivery');
+      },
+    };
+
+    const deps: PipelineDeps = {
+      db: brokenDb as never,
+      transcriber: fakeTranscriber({ text: 'unused', model: 'x', usage: {} }),
+      decomposer: fakeDecomposer(
+        decompositionResult([{ component: 'банан', component_en: 'banana', grams: 120 }]),
+      ),
+      embedder: fakeEmbedder(),
+      repo: fakeRepo([candidate()]),
+      editor,
+    };
+
+    await processMeal(deps, baseArgs());
+
+    // The last thing the user saw must be the result card, not an error.
+    const last = editor.calls.at(-1)?.text ?? '';
+    expect(last).not.toBe(pipelineCopy.internalError);
+    expect(last).toContain('банан');
+
+    vi.restoreAllMocks();
+  });
+});

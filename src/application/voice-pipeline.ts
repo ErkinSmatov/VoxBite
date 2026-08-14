@@ -45,10 +45,14 @@ import { matchIngredient, type FdcRepository } from '../domain/fdc-matching/inde
 import type { Db } from '../db/client.js';
 import type { Embedder } from '../adapters/embeddings/types.js';
 import type { Transcriber } from '../adapters/stt/types.js';
-import { DecompositionFailedError, type DishDecomposer } from '../adapters/llm/types.js';
+import {
+  DECOMPOSITION_MODEL,
+  DecompositionFailedError,
+  type DishDecomposer,
+} from '../adapters/llm/types.js';
 import { markUpdateStatus } from './idempotency.js';
 import { saveDraft } from './draft-store.js';
-import { logCost } from './cost-log.js';
+import { logCost, type CostInputs } from './cost-log.js';
 import { isWeakMatch, type DraftComponent, type MealDraft, type MessageEditor } from './types.js';
 import { pipelineCopy } from '../bot/formatting/pipeline-copy.js';
 import { buildResultCard } from '../bot/formatting/result-card.js';
@@ -77,10 +81,15 @@ export interface ProcessMealArgs {
 }
 
 /**
- * Edits the ack message into `copy`, marks the ledger row `status`, and logs
- * one operator line naming only `kind` and the update id. Never throws — the
- * whole point of this helper is to be the terminal step of every failure
- * path in a function that must not reject.
+ * Edits the ack message into `copy`, marks the ledger row `status`, logs one
+ * operator line naming only `kind` and the update id, and — when `cost` is
+ * supplied — the D-17 cost line for whatever was already spent before the
+ * failure. Never throws — the whole point of this helper is to be the
+ * terminal step of every failure path in a function that must not reject.
+ *
+ * Passing `cost` is not optional in spirit: a failure path that omits it
+ * makes spend invisible exactly when a user is retrying a broken message
+ * over and over, which is when the bill grows fastest.
  */
 async function finish(
   deps: PipelineDeps,
@@ -88,6 +97,7 @@ async function finish(
   copy: string,
   status: ProcessedUpdateStatus,
   kind: string,
+  cost?: CostInputs,
 ): Promise<void> {
   try {
     await deps.editor.editMessage(args.chatId, args.ackMessageId, copy);
@@ -100,9 +110,22 @@ async function finish(
     console.error(`voice-pipeline: failed to mark update ${args.updateId} status=${status} (kind=${kind})`);
   }
   console.error(`voice-pipeline: ${kind} for update ${args.updateId}`);
+  if (cost) {
+    try {
+      logCost(cost);
+    } catch {
+      // A cost line must never break the pipeline (see cost-log.ts).
+      console.error(`voice-pipeline: failed to log cost for update ${args.updateId} (kind=${kind})`);
+    }
+  }
 }
 
 export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Promise<void> {
+  // Tracked across the whole run so a failure late in the flow can tell
+  // "nothing reached the user yet" from "the user already has a correct card".
+  let draftSaved = false;
+  let cardDelivered = false;
+
   try {
     // 1. Obtain the transcript — the ONLY branch between voice and text.
     let transcript: string;
@@ -119,7 +142,17 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
         sttUsage = result.usage;
         sttSeconds = args.input.durationSeconds;
       } catch {
-        await finish(deps, args, pipelineCopy.sttFailed, 'failed', 'stt_failed');
+        // The STT call failed, so nothing is reliably billable and the LLM was
+        // never reached — but still emit a line so the run is not invisible.
+        await finish(deps, args, pipelineCopy.sttFailed, 'failed', 'stt_failed', {
+          sttSeconds: args.input.durationSeconds,
+          sttUsage: null,
+          sttModel: null,
+          llmUsage: null,
+          llmModel: null,
+          embeddedCount: 0,
+          componentCount: 0,
+        });
         return;
       }
       source = 'voice';
@@ -138,10 +171,29 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
       llmUsage = result.usage;
       llmModel = result.model;
     } catch (err) {
+      // STT was already paid for by this point, and DECOMP-03 means up to two
+      // LLM attempts may also have been billed — the usage for those is lost
+      // with the throw, so tokens render as unknown rather than as zero.
+      const failureCost: CostInputs = {
+        sttSeconds,
+        sttUsage,
+        sttModel,
+        llmUsage: null,
+        llmModel: DECOMPOSITION_MODEL,
+        embeddedCount: 0,
+        componentCount: 0,
+      };
       if (err instanceof DecompositionFailedError) {
-        await finish(deps, args, pipelineCopy.decompositionFailed, 'failed', 'decomposition_failed');
+        await finish(
+          deps,
+          args,
+          pipelineCopy.decompositionFailed,
+          'failed',
+          'decomposition_failed',
+          failureCost,
+        );
       } else {
-        await finish(deps, args, pipelineCopy.internalError, 'failed', 'internal_error');
+        await finish(deps, args, pipelineCopy.internalError, 'failed', 'internal_error', failureCost);
       }
       return;
     }
@@ -195,6 +247,16 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
 
       const draft: MealDraft = { transcript, source, components: draftComponents };
 
+      const successCost: CostInputs = {
+        sttSeconds,
+        sttUsage,
+        sttModel,
+        llmUsage,
+        llmModel,
+        embeddedCount: decomposition.items.length,
+        componentCount: draftComponents.length,
+      };
+
       await saveDraft(deps.db, {
         userId: args.userId,
         updateId: args.updateId,
@@ -205,25 +267,65 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
         components: draftComponents,
         status: 'draft',
       });
+      draftSaved = true;
 
       await deps.editor.editMessage(args.chatId, args.ackMessageId, buildResultCard(draft));
-      await markUpdateStatus(deps.db, args.updateId, 'done');
+      cardDelivered = true;
 
-      logCost({
+      // Past this point the user already has a correct result card and the
+      // draft is persisted. Nothing below may be allowed to overwrite that
+      // card with an error, so each remaining step swallows its own failure
+      // rather than falling into the catch below.
+      try {
+        await markUpdateStatus(deps.db, args.updateId, 'done');
+      } catch {
+        console.error(`voice-pipeline: failed to mark update ${args.updateId} status=done after delivering the card`);
+      }
+      try {
+        logCost(successCost);
+      } catch {
+        console.error(`voice-pipeline: failed to log cost for update ${args.updateId}`);
+      }
+    } catch {
+      await handleLateFailure(deps, args, {
         sttSeconds,
         sttUsage,
         sttModel,
         llmUsage,
         llmModel,
         embeddedCount: decomposition.items.length,
-        componentCount: draftComponents.length,
+        componentCount: 0,
       });
-    } catch {
-      await finish(deps, args, pipelineCopy.internalError, 'failed', 'internal_error');
     }
   } catch {
     // Defensive outer catch: guarantees processMeal never rejects even if
     // something unexpected escapes every inner handler above.
-    await finish(deps, args, pipelineCopy.internalError, 'failed', 'internal_error');
+    await handleLateFailure(deps, args, null);
+  }
+
+  /**
+   * Failure handling for the stage after decomposition.
+   *
+   * The naive version edited the ack into `internalError` unconditionally.
+   * That was wrong once the card had already been delivered: a hiccup in a
+   * later step (marking the ledger row, logging) replaced a correct result
+   * the user could see with an error message, while the persisted draft
+   * stayed behind as an orphan. A delivered card is never overwritten.
+   */
+  async function handleLateFailure(
+    d: PipelineDeps,
+    a: ProcessMealArgs,
+    cost: CostInputs | null,
+  ): Promise<void> {
+    if (cardDelivered) {
+      console.error(`voice-pipeline: post-delivery failure for update ${a.updateId} — result card left intact`);
+      return;
+    }
+    if (draftSaved) {
+      // The draft row exists but the user never saw a card. Phase 4 owns
+      // draft lifecycle; surface it so the row is not silently orphaned.
+      console.error(`voice-pipeline: draft persisted but card not delivered for update ${a.updateId}`);
+    }
+    await finish(d, a, pipelineCopy.internalError, 'failed', 'internal_error', cost ?? undefined);
   }
 }

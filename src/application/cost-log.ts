@@ -48,7 +48,13 @@ export interface CostInputs {
   sttModel: string | null;
   /** Raw usage value from DecompositionResult.usage (AI SDK v7 `LanguageModelUsage`-shaped). */
   llmUsage: unknown;
-  llmModel: string;
+  /**
+   * The decomposition model used, or `null` when the run ended before the LLM
+   * was ever called (e.g. STT failed). `null` renders as "не вызывалась" so a
+   * failed run still produces a cost line instead of going silent — spend must
+   * stay visible exactly when things are breaking repeatedly.
+   */
+  llmModel: string | null;
   /** How many strings were sent to Embedder.embed() in the one batched call. */
   embeddedCount: number;
   /** How many DraftComponents ended up in the draft. */
@@ -106,7 +112,9 @@ export function buildCostLine(inputs: CostInputs): string {
   const { inputTokens, outputTokens } = narrowTokenUsage(llmUsage);
   let llmCostUsd = 0;
   let llmPart: string;
-  if (inputTokens === null && outputTokens === null) {
+  if (llmModel === null) {
+    llmPart = 'LLM: не вызывалась';
+  } else if (inputTokens === null && outputTokens === null) {
     llmPart = `LLM (${llmModel}): токены неизвестно`;
   } else {
     const inTok = inputTokens ?? 0;
