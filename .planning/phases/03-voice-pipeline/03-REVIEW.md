@@ -52,6 +52,19 @@ findings:
   info: 6
   total: 18
 status: issues_found
+remediation:
+  applied: 2026-08-14
+  by: orchestrator (/gsd-execute-phase 3)
+  fixed:
+    - CR-01 (blocker) — prompt no longer built with String.replace; commit 3052ca6
+    - CR-02 (blocker) — byte ceiling + Content-Length + buffered-length checks + 30s fetch timeout; commit 2e40ea4
+    - WR daily cap off-by-one — comparison corrected to `>`; commit 5ea8f48
+    - WR no cost line on failure paths — finish() now logs accumulated cost; commit 2299444
+    - WR delivered card overwritten by late failure — post-delivery steps isolated; commit 2299444
+    - WR silent text truncation — now refused via pipelineCopy.textTooLong; commit 27b7bcb
+    - WR source-text middleware order assertion — bot.wiring.runtime.test.ts added, import hack removed; commit 9107716
+  outstanding:
+    - remaining WARNING and INFO findings in this report were not addressed in this pass
 ---
 
 # Phase 3: Code Review Report
