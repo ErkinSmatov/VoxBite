@@ -82,10 +82,18 @@ export async function isDailyCapReached(db: Db, telegramId: number): Promise<boo
  * copies the query shape of `src/bot/commands/start.ts` rather than
  * inventing a second one. Returns `null` both when no row exists and when
  * the row exists but onboarding was never completed.
+ *
+ * Also returns the user's `timezone`: D-07 freezes the diary day at message
+ * receipt, and this is the one query the meal handlers already run before
+ * any paid call, so carrying the timezone out of it costs nothing and
+ * removes any temptation to look it up separately at confirm time.
  */
-export async function findOnboardedUser(db: Db, telegramId: number): Promise<{ id: number } | null> {
+export async function findOnboardedUser(
+  db: Db,
+  telegramId: number,
+): Promise<{ id: number; timezone: string } | null> {
   const rows = await db
-    .select({ id: users.id, onboardedAt: users.onboardedAt })
+    .select({ id: users.id, onboardedAt: users.onboardedAt, timezone: users.timezone })
     .from(users)
     .where(eq(users.telegramId, telegramId))
     .limit(1);
@@ -95,5 +103,8 @@ export async function findOnboardedUser(db: Db, telegramId: number): Promise<{ i
     return null;
   }
 
-  return { id: user.id };
+  // users.timezone is NOT NULL with a default -- no fallback literal here.
+  // A silent fallback would mask a schema regression; if the column were
+  // ever null, deriveLocalDate should fail loudly instead.
+  return { id: user.id, timezone: user.timezone };
 }
