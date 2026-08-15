@@ -18,6 +18,15 @@
  */
 
 import type { FdcCandidate } from '../domain/fdc-matching/index.js';
+import type { DraftAwaitingInput } from '../db/schema/diary-drafts.js';
+
+/**
+ * Re-exported from the schema so `corrections.ts`/`confirm-meal.ts`/the
+ * Telegram handlers import every application-layer shape from here, the same
+ * way they import `DraftComponent` and `MealDraft` — never reaching into
+ * `src/db/schema/` directly for a type.
+ */
+export type { DraftAwaitingInput };
 
 /**
  * Below this similarity a component's best candidate is FLAGGED, never
@@ -102,3 +111,63 @@ export interface MessageEditor {
 
 /** Every terminal, non-success outcome the voice pipeline can reach. */
 export type PipelineFailure = 'stt_failed' | 'decomposition_failed' | 'no_food' | 'internal_error';
+
+/**
+ * D-11: how long a draft in `status = 'draft'` remains actionable. Past this
+ * age the correction/confirm buttons on the result card stop working and the
+ * user is told to resend — nothing is deleted. A `'confirmed'` draft is
+ * exempt (D-06: it is now the working copy of a real diary entry, not
+ * disposable state) and an `'abandoned'` one is identified by its status, not
+ * by age.
+ *
+ * KNOWN DEBT, stated rather than glossed over: this phase does not add a
+ * background job to delete abandoned/expired rows — that needs a scheduler
+ * that does not exist yet — so those rows (and the transcripts they hold,
+ * which are sensitive: what someone ate) persist indefinitely. Revisit once
+ * a scheduler exists; do not invent an ad-hoc deletion path here.
+ */
+export const DRAFT_TTL_HOURS = 24;
+
+/**
+ * The single shared rule for "is this draft too old to act on" (D-11). Pure,
+ * no I/O, `now` is injected rather than read via `new Date()` internally so
+ * both `draft-store.test.ts` and later handler tests can use a fixed clock
+ * and never disagree with the store about what "stale" means.
+ *
+ * Any status other than `'draft'` is never expired: a `'confirmed'` row is a
+ * durable diary record (D-06) and must never expire, and an `'abandoned'`
+ * row is already terminal — its status, not its age, is what matters.
+ */
+export function isDraftExpired(status: string, createdAt: Date, now: Date): boolean {
+  if (status !== 'draft') {
+    return false;
+  }
+  const ageMs = now.getTime() - createdAt.getTime();
+  return ageMs > DRAFT_TTL_HOURS * 3600_000;
+}
+
+/**
+ * The shape `draft-store.ts`'s `readDraft` returns — every column the
+ * correction/confirm/delete flows (plans 07/08) and the Telegram handlers
+ * (plans 09/10) need, with no leakage of Drizzle's raw row/jsonb types.
+ */
+export interface PersistedDraft {
+  id: number;
+  userId: number;
+  chatId: number;
+  messageId: number;
+  source: 'voice' | 'text';
+  transcript: string;
+  /** The `components` jsonb column, cast to `DraftComponent[]`. */
+  components: DraftComponent[];
+  status: 'draft' | 'confirmed' | 'abandoned';
+  awaitingInput: DraftAwaitingInput | null;
+  /**
+   * `null` means this row is a pre-Phase-4 leftover (see
+   * `src/db/schema/diary-drafts.ts`'s `localDate` comment) — confirmation
+   * must refuse a draft in this state rather than inventing a day for it.
+   */
+  localDate: string | null;
+  diaryId: number | null;
+  createdAt: Date;
+}
