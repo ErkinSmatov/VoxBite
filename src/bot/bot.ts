@@ -37,7 +37,10 @@ import { questionCopy } from './formatting/onboarding-copy.js';
 import { ack } from './telegram/ack.js';
 import { createErrorHandler } from './error-handler.js';
 import { buildMealHandlerDeps } from './pipeline-wiring.js';
+import { buildCorrectionHandlerDeps } from './correction-wiring.js';
 import { createTextHandler, createUnsupportedHandler, createVoiceHandler } from './handlers/meal.js';
+import { createCorrectionCallbackHandler, createCorrectionTextHandler } from './handlers/correction.js';
+import { CRC_PATTERN } from './keyboards/correction-keyboards.js';
 
 export interface SessionData {
   // Empty for now — conversations own their own state via the storage
@@ -129,6 +132,25 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
     api: bot.api,
     sttModel: deps.sttModel,
   });
+
+  // Phase 4: the correction handlers (crc: callback dispatch, plan 09) and
+  // the D-04 awaiting-input text gate (plan 10). Both sit behind the
+  // section-1 allowlist gate, same as every other registration in this
+  // section (T-04-08). Reuses mealDeps.deps.embedder/repo rather than
+  // building a second OpenAI client/repository (only ONE embedder instance
+  // may exist at runtime, T-04-36). The text interception happens INSIDE
+  // createTextHandler via mealDeps.interceptCorrectionText, deliberately NOT
+  // as a second, competing text-message registration below — a competing
+  // registration would make dispatch order an implicit fact instead of an
+  // auditable one (see 04-10-PLAN.md's objective).
+  const correctionDeps = buildCorrectionHandlerDeps({
+    db: deps.db,
+    embedder: mealDeps.deps.embedder,
+    repo: mealDeps.deps.repo,
+  });
+  mealDeps.interceptCorrectionText = createCorrectionTextHandler(correctionDeps);
+  bot.callbackQuery(CRC_PATTERN, createCorrectionCallbackHandler(correctionDeps));
+
   bot.on('message:voice', createVoiceHandler(mealDeps));
   bot.on('message:text', createTextHandler(mealDeps));
   // D-06: audio files, video notes, photos, documents, stickers and videos

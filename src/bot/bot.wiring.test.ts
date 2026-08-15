@@ -17,13 +17,21 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const BOT_TS = fileURLToPath(new URL('./bot.ts', import.meta.url));
+const MEAL_TS = fileURLToPath(new URL('./handlers/meal.ts', import.meta.url));
+const CORRECTION_TS = fileURLToPath(new URL('./handlers/correction.ts', import.meta.url));
 
-/** bot.ts with comment lines stripped, so a mention in prose does not count. */
-function botSource(): string {
-  return readFileSync(BOT_TS, 'utf8')
+/** Strips `//` and `*`/`/*`-leading comment lines from a source file, so a
+ * mention in prose does not count as the real call site. Shared by every
+ * source-text tripwire below (bot.ts, meal.ts, correction.ts). */
+function stripComments(path: string): string {
+  return readFileSync(path, 'utf8')
     .split('\n')
     .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
     .join('\n');
+}
+
+function botSource(): string {
+  return stripComments(BOT_TS);
 }
 
 describe('bot.ts registration order (D-05 / T-02-23)', () => {
@@ -94,6 +102,51 @@ describe('bot.ts Phase 3 meal-handler registrations (T-03-46 / T-03-44)', () => 
     expect(source).toContain('createVoiceHandler');
     expect(source).toContain('createTextHandler');
     expect(source).toContain('createUnsupportedHandler');
+  });
+});
+
+describe('bot.ts Phase 4 correction registrations (T-04-08 / T-04-34)', () => {
+  it('registers the crc: callbackQuery dispatcher after the allowlist gate call site', () => {
+    const source = botSource();
+    const allowlistIndex = source.indexOf('bot.use(createAllowlistMiddleware(');
+    // Match the CALL SITE, not the bare identifier — CRC_PATTERN is also
+    // named in the import declaration above every registration.
+    const crcCallIndex = source.indexOf('bot.callbackQuery(CRC_PATTERN');
+
+    expect(allowlistIndex).toBeGreaterThanOrEqual(0);
+    expect(crcCallIndex).toBeGreaterThanOrEqual(0);
+    expect(crcCallIndex).toBeGreaterThan(allowlistIndex);
+  });
+
+  it('registers exactly one message:text handler — no second, competing registration', () => {
+    const source = botSource();
+    const textRegistrations = [...source.matchAll(/bot\.on\('message:text'/g)];
+    expect(textRegistrations).toHaveLength(1);
+  });
+
+  it("correction.ts never calls ctx.reply — every redraw edits the existing card (D-13)", () => {
+    const source = stripComments(CORRECTION_TS);
+    expect(source).not.toContain('ctx.reply(');
+  });
+});
+
+describe('meal.ts D-04 spend-control gate order (the one ordering fact that costs real money)', () => {
+  it('the awaiting-input interception precedes claimUpdate( inside createTextHandler', () => {
+    const source = stripComments(MEAL_TS);
+
+    // Scope to createTextHandler's own body: find its declaration, then the
+    // NEXT `export function` (createUnsupportedHandler) marks the end, so a
+    // match inside createVoiceHandler above it can never satisfy this check.
+    const textHandlerStart = source.indexOf('export function createTextHandler(');
+    expect(textHandlerStart).toBeGreaterThanOrEqual(0);
+    const nextExportStart = source.indexOf('export function', textHandlerStart + 1);
+    const textHandlerBody = nextExportStart >= 0 ? source.slice(textHandlerStart, nextExportStart) : source.slice(textHandlerStart);
+
+    const interceptIndex = textHandlerBody.indexOf('interceptCorrectionText(ctx');
+    const claimUpdateIndex = textHandlerBody.indexOf('claimUpdate(');
+
+    expect(interceptIndex).toBeGreaterThanOrEqual(0);
+    expect(claimUpdateIndex).toBeGreaterThan(interceptIndex);
   });
 });
 
