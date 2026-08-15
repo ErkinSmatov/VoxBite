@@ -9,13 +9,19 @@ function makeCtx(opts: {
   updateId?: number;
   voice?: { duration: number };
   text?: string;
+  messageDate?: number;
 }) {
   const replies: string[] = [];
+  const base = opts.voice
+    ? { voice: opts.voice }
+    : opts.text !== undefined
+      ? { text: opts.text }
+      : undefined;
   const ctx = {
     from: opts.telegramId === undefined ? undefined : { id: opts.telegramId },
     chat: opts.chatId === undefined ? undefined : { id: opts.chatId },
     update: { update_id: opts.updateId ?? 1 },
-    message: opts.voice ? { voice: opts.voice } : opts.text !== undefined ? { text: opts.text } : undefined,
+    message: base ? { ...base, date: opts.messageDate ?? 1_700_000_000 } : undefined,
     reply: vi.fn(async (text: string) => {
       replies.push(text);
       return { message_id: 999 };
@@ -33,7 +39,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
   const markUpdateStatus = vi.fn(async () => {});
   const findOnboardedUser = vi.fn(async () => {
     order.push('findOnboardedUser');
-    return { id: 42 };
+    return { id: 42, timezone: 'Asia/Almaty' };
   });
   const isDailyCapReached = vi.fn(async () => {
     order.push('isDailyCapReached');
@@ -66,7 +72,7 @@ describe('createVoiceHandler', () => {
   it('happy path calls gates, download, ack, and fires processMeal in this exact order', async () => {
     const d = makeDeps();
     const handler = createVoiceHandler(d as never);
-    const { ctx, replies } = makeCtx({ telegramId: 1, chatId: 2, voice: { duration: 5 } });
+    const { ctx, replies } = makeCtx({ telegramId: 1, chatId: 2, voice: { duration: 5 }, messageDate: 1_700_000_000 });
 
     await handler(ctx as never);
 
@@ -81,6 +87,24 @@ describe('createVoiceHandler', () => {
     // allow microtasks to flush.
     await Promise.resolve();
     expect(d.processMeal).toHaveBeenCalledTimes(1);
+    const call = (d.processMeal as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(call[1].receivedAt).toEqual(new Date(1_700_000_000 * 1000));
+    expect(call[1].timezone).toBe('Asia/Almaty');
+  });
+
+  it('missing message.date falls back to the current time without throwing', async () => {
+    const d = makeDeps();
+    const handler = createVoiceHandler(d as never);
+    const { ctx } = makeCtx({ telegramId: 1, chatId: 2, voice: { duration: 5 }, messageDate: 0 });
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await handler(ctx as never);
+    await Promise.resolve();
+
+    const call = (d.processMeal as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(call[1].receivedAt).toBeInstanceOf(Date);
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
   });
 
   it('claimUpdate returning false: returns immediately, no reply, no downloadVoice, no processMeal', async () => {
@@ -194,7 +218,12 @@ describe('createTextHandler', () => {
   it('same gate order minus download, passes {kind: text, text} to processMeal, never calls downloadVoice', async () => {
     const d = makeDeps();
     const handler = createTextHandler(d as never);
-    const { ctx, replies } = makeCtx({ telegramId: 1, chatId: 2, text: 'омлет из двух яиц' });
+    const { ctx, replies } = makeCtx({
+      telegramId: 1,
+      chatId: 2,
+      text: 'омлет из двух яиц',
+      messageDate: 1_700_000_000,
+    });
 
     await handler(ctx as never);
     await Promise.resolve();
@@ -205,6 +234,23 @@ describe('createTextHandler', () => {
     expect(d.processMeal).toHaveBeenCalledTimes(1);
     const call = (d.processMeal as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(call[1].input).toEqual({ kind: 'text', text: 'омлет из двух яиц' });
+    expect(call[1].receivedAt).toEqual(new Date(1_700_000_000 * 1000));
+    expect(call[1].timezone).toBe('Asia/Almaty');
+  });
+
+  it('missing message.date falls back to the current time without throwing', async () => {
+    const d = makeDeps();
+    const handler = createTextHandler(d as never);
+    const { ctx } = makeCtx({ telegramId: 1, chatId: 2, text: 'блины', messageDate: 0 });
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await handler(ctx as never);
+    await Promise.resolve();
+
+    const call = (d.processMeal as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(call[1].receivedAt).toBeInstanceOf(Date);
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
   });
 
   it('ignores messages beginning with /', async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { processMeal, type PipelineDeps, type ProcessMealArgs } from './voice-pipeline.js';
+import { deriveLocalDate } from './local-date.js';
 import { DecompositionFailedError, type DecompositionResult } from '../adapters/llm/types.js';
 import type { Transcriber, TranscriptionResult } from '../adapters/stt/types.js';
 import type { Embedder } from '../adapters/embeddings/types.js';
@@ -132,6 +133,8 @@ function baseArgs(overrides: Partial<ProcessMealArgs> = {}): ProcessMealArgs {
     chatId: 555,
     ackMessageId: 42,
     input: { kind: 'text', text: 'банан 120 грамм' },
+    receivedAt: new Date('2026-01-01T12:00:00Z'),
+    timezone: 'Asia/Almaty',
     ...overrides,
   };
 }
@@ -303,6 +306,96 @@ describe('processMeal', () => {
     expect(logSpy).toHaveBeenCalledTimes(1);
 
     logSpy.mockRestore();
+  });
+
+  it('D-07: the saved draft carries localDate derived from receivedAt/timezone', async () => {
+    const decomposer = fakeDecomposer(
+      decompositionResult([{ component: 'банан', component_en: 'banana, raw', grams: 120 }]),
+    );
+    const embedder = fakeEmbedder();
+    const repo = fakeRepo([candidate()]);
+    const editor = fakeEditor();
+    const db = fakeDb();
+
+    const deps: PipelineDeps = {
+      db: db as never,
+      transcriber: fakeTranscriber({ text: 'unused', model: 'x', usage: {} }),
+      decomposer,
+      embedder,
+      repo,
+      editor,
+    };
+
+    const receivedAt = new Date('2026-03-14T15:30:00Z');
+    const timezone = 'Asia/Almaty';
+    await processMeal(deps, baseArgs({ receivedAt, timezone }));
+
+    const draft = db.inserted[0] as { localDate: string };
+    expect(draft.localDate).toBe(deriveLocalDate(receivedAt, timezone));
+  });
+
+  it('D-07 motivating case: a just-after-midnight Asia/Almaty instant is filed under the LOCAL day, not the UTC day', async () => {
+    const decomposer = fakeDecomposer(
+      decompositionResult([{ component: 'банан', component_en: 'banana, raw', grams: 120 }]),
+    );
+    const embedder = fakeEmbedder();
+    const repo = fakeRepo([candidate()]);
+    const editor = fakeEditor();
+    const db = fakeDb();
+
+    const deps: PipelineDeps = {
+      db: db as never,
+      transcriber: fakeTranscriber({ text: 'unused', model: 'x', usage: {} }),
+      decomposer,
+      embedder,
+      repo,
+      editor,
+    };
+
+    // Asia/Almaty is UTC+5. 2026-03-15 00:10 local time is 2026-03-14T19:10Z
+    // -- still UTC day 14, but the meal was dictated just after LOCAL
+    // midnight on the 15th. A naive UTC-date read (or anything computed from
+    // the wall clock at confirm time) would silently misfile this under the
+    // 14th; deriveLocalDate must return the 15th.
+    const receivedAt = new Date('2026-03-14T19:10:00Z');
+    const timezone = 'Asia/Almaty';
+    await processMeal(deps, baseArgs({ receivedAt, timezone }));
+
+    const draft = db.inserted[0] as { localDate: string };
+    expect(draft.localDate).toBe('2026-03-15');
+    expect(draft.localDate).toBe(deriveLocalDate(receivedAt, timezone));
+  });
+
+  it('D-07: processMeal never rejects when deriveLocalDate throws on an invalid timezone', async () => {
+    const decomposer = fakeDecomposer(
+      decompositionResult([{ component: 'банан', component_en: 'banana, raw', grams: 120 }]),
+    );
+    const embedder = fakeEmbedder();
+    const repo = fakeRepo([candidate()]);
+    const editor = fakeEditor();
+    const db = fakeDb();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const deps: PipelineDeps = {
+      db: db as never,
+      transcriber: fakeTranscriber({ text: 'unused', model: 'x', usage: {} }),
+      decomposer,
+      embedder,
+      repo,
+      editor,
+    };
+
+    await expect(
+      processMeal(deps, baseArgs({ timezone: 'Not/A_Real_Zone' })),
+    ).resolves.toBeUndefined();
+
+    // The late-failure path ran instead of a rejection: saveDraft never
+    // happened, and the ack was edited into the internal-error copy.
+    expect(db.inserted).toHaveLength(0);
+    expect(editor.calls.at(-1)?.text).toBe(pipelineCopy.internalError);
+    expect(db.statusUpdates).toEqual(['failed']);
+
+    vi.restoreAllMocks();
   });
 
   it('empty decomposition: editMessage receives noFood, saveDraft NOT called, markUpdateStatus done, decompose called exactly once (D-08)', async () => {

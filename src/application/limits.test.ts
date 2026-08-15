@@ -19,7 +19,7 @@ const { users } = await import('../db/schema/users.js');
 const { DAILY_MESSAGE_CAP } = await import('./types.js');
 
 type FakeUpdateRow = { telegramId: number; createdAt: Date };
-type FakeUserRow = { id: number; telegramId: number; onboardedAt: Date | null };
+type FakeUserRow = { id: number; telegramId: number; onboardedAt: Date | null; timezone: string };
 
 type Condition =
   | { kind: 'eq'; column: unknown; value: unknown }
@@ -189,15 +189,26 @@ describe('isDailyCapReached', () => {
 });
 
 describe('findOnboardedUser', () => {
-  it('returns { id } for a user row whose onboardedAt is not null', async () => {
+  it('returns { id, timezone } for a user row whose onboardedAt is not null', async () => {
     const { db } = makeFakeDb({
-      userRows: [{ id: 7, telegramId: 111, onboardedAt: new Date() }],
+      userRows: [{ id: 7, telegramId: 111, onboardedAt: new Date(), timezone: 'Asia/Almaty' }],
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await findOnboardedUser(db as any, 111);
 
-    expect(result).toEqual({ id: 7 });
+    expect(result).toEqual({ id: 7, timezone: 'Asia/Almaty' });
+  });
+
+  it('carries a non-default timezone through unchanged', async () => {
+    const { db } = makeFakeDb({
+      userRows: [{ id: 9, telegramId: 333, onboardedAt: new Date(), timezone: 'Europe/Moscow' }],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await findOnboardedUser(db as any, 333);
+
+    expect(result?.timezone).toBe('Europe/Moscow');
   });
 
   it('returns null when no user row exists', async () => {
@@ -211,7 +222,7 @@ describe('findOnboardedUser', () => {
 
   it('returns null when the row exists but onboardedAt is null', async () => {
     const { db } = makeFakeDb({
-      userRows: [{ id: 8, telegramId: 222, onboardedAt: null }],
+      userRows: [{ id: 8, telegramId: 222, onboardedAt: null, timezone: 'Asia/Almaty' }],
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
