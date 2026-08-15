@@ -124,3 +124,9 @@ None — no external service configuration required. This plan touches only bot-
 ---
 *Phase: 04-confirm-correct-diary-persistence*
 *Completed: 2026-08-15*
+
+## Self-Check: PASSED
+
+- FOUND: src/bot/correction-wiring.ts
+- FOUND: .planning/phases/04-confirm-correct-diary-persistence/04-10-SUMMARY.md
+- FOUND commits: edcd672, 07bec69, 9c180aa, cdb4da6
