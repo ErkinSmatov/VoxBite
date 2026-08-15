@@ -228,7 +228,10 @@ describe('createTextHandler', () => {
     await handler(ctx as never);
     await Promise.resolve();
 
-    expect(d.order.slice(0, 3)).toEqual(['claimUpdate', 'findOnboardedUser', 'isDailyCapReached']);
+    // Gate 0.5 (D-04) hoists findOnboardedUser ahead of claimUpdate — see
+    // meal.ts's module header. It must still be queried only ONCE.
+    expect(d.order.slice(0, 3)).toEqual(['findOnboardedUser', 'claimUpdate', 'isDailyCapReached']);
+    expect(d.findOnboardedUser).toHaveBeenCalledTimes(1);
     expect(d.downloadVoice).not.toHaveBeenCalled();
     expect(replies).toContain(pipelineCopy.ack);
     expect(d.processMeal).toHaveBeenCalledTimes(1);
@@ -236,6 +239,40 @@ describe('createTextHandler', () => {
     expect(call[1].input).toEqual({ kind: 'text', text: 'омлет из двух яиц' });
     expect(call[1].receivedAt).toEqual(new Date(1_700_000_000 * 1000));
     expect(call[1].timezone).toBe('Asia/Almaty');
+  });
+
+  it('a text message while a draft is awaiting input is intercepted before claimUpdate: zero claimUpdate, zero processMeal (D-04)', async () => {
+    const interceptCorrectionText = vi.fn(async () => true);
+    const d = makeDeps({ interceptCorrectionText });
+    const handler = createTextHandler(d as never);
+    const { ctx, replies } = makeCtx({ telegramId: 1, chatId: 2, text: 'сметана' });
+
+    await handler(ctx as never);
+
+    expect(interceptCorrectionText).toHaveBeenCalledTimes(1);
+    expect(d.claimUpdate).not.toHaveBeenCalled();
+    expect(d.processMeal).not.toHaveBeenCalled();
+    expect(replies).toHaveLength(0);
+  });
+
+  it('a text message with nothing awaiting still runs the full existing gate sequence unchanged', async () => {
+    const interceptCorrectionText = vi.fn(async () => false);
+    const d = makeDeps({ interceptCorrectionText });
+    const handler = createTextHandler(d as never);
+    const { ctx, replies } = makeCtx({
+      telegramId: 1,
+      chatId: 2,
+      text: 'омлет',
+      messageDate: 1_700_000_000,
+    });
+
+    await handler(ctx as never);
+    await Promise.resolve();
+
+    expect(interceptCorrectionText).toHaveBeenCalledTimes(1);
+    expect(d.order.slice(0, 3)).toEqual(['findOnboardedUser', 'claimUpdate', 'isDailyCapReached']);
+    expect(replies).toContain(pipelineCopy.ack);
+    expect(d.processMeal).toHaveBeenCalledTimes(1);
   });
 
   it('missing message.date falls back to the current time without throwing', async () => {

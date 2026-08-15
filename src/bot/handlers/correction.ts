@@ -67,12 +67,15 @@ import { findOnboardedUser as findOnboardedUserReal } from '../../application/li
 import {
   clearAwaitingInput as clearAwaitingInputReal,
   claimAbandon as claimAbandonReal,
+  findAwaitingDraft as findAwaitingDraftReal,
   markDraftStatus as markDraftStatusReal,
   readDraft as readDraftReal,
   setAwaitingInput as setAwaitingInputReal,
 } from '../../application/draft-store.js';
 import {
+  addComponent as addComponentReal,
   adjustGrams as adjustGramsReal,
+  applyTypedGrams as applyTypedGramsReal,
   GRAM_STEP,
   removeComponent as removeComponentReal,
   swapCandidate as swapCandidateReal,
@@ -121,6 +124,13 @@ export interface CorrectionHandlerDeps {
   confirmMeal?: typeof confirmMealReal;
   recomputeSavedEntry?: typeof recomputeSavedEntryReal;
   deleteSavedEntry?: typeof deleteSavedEntryReal;
+  /** Plan 10: the D-04 text-gate's lookup — the most recent 'draft' row for
+   * this user with `awaiting_input IS NOT NULL`. */
+  findAwaitingDraft?: typeof findAwaitingDraftReal;
+  /** Plan 10: the typed-grams and added-component operations the text gate
+   * dispatches into (plan 07). */
+  applyTypedGrams?: typeof applyTypedGramsReal;
+  addComponent?: typeof addComponentReal;
   /** Injectable clock for D-11 expiry tests — defaults to `() => new Date()`. */
   now?: () => Date;
 }
@@ -410,5 +420,174 @@ export function createCorrectionCallbackHandler(d: CorrectionHandlerDeps) {
         return;
       }
     }
+  };
+}
+
+/**
+ * D-04 text gate (plan 10): given a draft whose `awaitingInput` is non-null
+ * (`findAwaitingDraft` already guarantees this — see
+ * `createCorrectionTextHandler` below), dispatches the just-typed message
+ * text into the matching operation and redraws the correction card IN
+ * PLACE.
+ *
+ * Every redraw here targets `draft.chatId`/`draft.messageId` — the
+ * ORIGINAL card message (Phase 3, D-13), NOT the user's own just-sent text
+ * message, which is left untouched in the chat. `ctx.editMessageText`
+ * cannot be used directly for this (it resolves chat/message id from the
+ * CURRENT update, which here is the plain text message, not the card), so
+ * this builds a one-off `EditableTextCtx` around `ctx.api.editMessageText`
+ * pinned to the draft's own chat/message id and still routes every edit
+ * through `safeEditMessageText` (same Pitfall-1 swallow as the callback
+ * handler above).
+ *
+ * LOGGING RULE (unchanged from the module header): failures log the draft
+ * id and operation/reason only, never the user's typed text.
+ */
+export async function handleAwaitingText(
+  d: CorrectionHandlerDeps,
+  ctx: BotContext,
+  user: { id: number },
+  draft: PersistedDraft,
+): Promise<void> {
+  const applyTypedGrams = d.applyTypedGrams ?? applyTypedGramsReal;
+  const addComponent = d.addComponent ?? addComponentReal;
+  const clearAwaitingInput = d.clearAwaitingInput ?? clearAwaitingInputReal;
+  const markDraftStatus = d.markDraftStatus ?? markDraftStatusReal;
+  const now = d.now ?? (() => new Date());
+
+  const text = ctx.message?.text ?? '';
+
+  // Cast `other` once, mirroring `createCorrectionCallbackHandler`'s
+  // `editCtx` cast above: grammY's real `editMessageText` overload (`Other<>`
+  // parameter type) is not directly assignable to the deliberately loose
+  // `other?: unknown` safe-edit.ts declares for its own testability.
+  const pinnedCtx: EditableTextCtx = {
+    editMessageText: (t: string, other?: unknown) =>
+      ctx.api.editMessageText(
+        draft.chatId,
+        draft.messageId,
+        t,
+        other as Parameters<typeof ctx.api.editMessageText>[3],
+      ),
+  };
+  const editText = (t: string, other?: unknown) => safeEditMessageText(pinnedCtx, t, other);
+
+  // D-11: the draft was read a moment ago via findAwaitingDraft, but TTL is
+  // time-based, not state-based — it can still have crossed the expiry
+  // boundary between that read and this dispatch.
+  if (isDraftExpired(draft.status, draft.createdAt, now())) {
+    await markDraftStatus(d.db, draft.id, user.id, 'abandoned');
+    await clearAwaitingInput(d.db, draft.id, user.id);
+    await editText(correctionCopy.expired, NO_KEYBOARD);
+    return;
+  }
+
+  const awaiting = draft.awaitingInput;
+  if (!awaiting) {
+    // findAwaitingDraft only ever returns rows with the flag set, but this
+    // function's own contract documents the precondition — treat a caller
+    // violating it as a silent no-op rather than throwing.
+    return;
+  }
+
+  const renderLevel1 = async (components: PersistedDraft['components'], suffix?: string): Promise<void> => {
+    if (components.length === 0) {
+      await editText(correctionCopy.emptyState, { reply_markup: buildEmptyStateKeyboard(draft.id) });
+      return;
+    }
+    const rendered = suffix ? `${buildCorrectionCard(components)}\n\n${suffix}` : buildCorrectionCard(components);
+    await editText(rendered, { reply_markup: buildLevel1Keyboard(components, draft.id) });
+  };
+
+  const renderLevel2 = async (
+    components: PersistedDraft['components'],
+    index: number,
+    suffix?: string,
+  ): Promise<void> => {
+    const component = components[index];
+    if (!component) {
+      await renderLevel1(components);
+      return;
+    }
+    const rendered = suffix
+      ? `${buildComponentEditCard(components, index)}\n\n${suffix}`
+      : buildComponentEditCard(components, index);
+    await editText(rendered, { reply_markup: buildLevel2Keyboard(component, index, draft.id) });
+  };
+
+  if (awaiting.kind === 'typed_grams') {
+    const componentIndex = awaiting.componentIndex;
+    if (componentIndex === undefined) {
+      await renderLevel1(draft.components);
+      return;
+    }
+
+    const result = await applyTypedGrams(d.db, draft.id, user.id, componentIndex, text, now());
+    if (!result.ok) {
+      if (result.reason === 'invalid_grams') {
+        // CORRECT-04 retry path: applyTypedGrams did NOT clear the awaiting
+        // flag on this path, so the user's next message is routed here
+        // again without re-tapping the button.
+        await renderLevel2(draft.components, componentIndex, correctionCopy.gramsRejected);
+        return;
+      }
+      console.error(`correction text handler: applyTypedGrams failed for draft ${draft.id} (${result.reason})`);
+      await editText(correctionCopy.expired, NO_KEYBOARD);
+      return;
+    }
+    await renderLevel2(result.components, componentIndex);
+    return;
+  }
+
+  // awaiting.kind === 'add_component'
+  const result = await addComponent(d.db, draft.id, user.id, text, { embedder: d.embedder, repo: d.repo }, now());
+  if (!result.ok) {
+    if (result.reason === 'text_too_long') {
+      // Flag left set — addComponent did not clear it on this path — so the
+      // user can simply type a shorter description next.
+      await renderLevel1(draft.components, correctionCopy.componentTooLong);
+      return;
+    }
+    if (result.reason === 'empty_text') {
+      await renderLevel1(draft.components, correctionCopy.askComponent);
+      return;
+    }
+    if (result.reason === 'match_failed') {
+      console.error(`correction text handler: addComponent match_failed for draft ${draft.id}`);
+      await renderLevel1(draft.components, correctionCopy.addNotFound(text.trim()));
+      return;
+    }
+    console.error(`correction text handler: addComponent failed for draft ${draft.id} (${result.reason})`);
+    await editText(correctionCopy.expired, NO_KEYBOARD);
+    return;
+  }
+
+  const added = result.components[result.components.length - 1];
+  if (added && added.candidates.length === 0) {
+    await renderLevel1(result.components, correctionCopy.addNotFound(added.component));
+    return;
+  }
+  await renderLevel1(result.components);
+}
+
+/**
+ * D-04 (plan 10): the thin wrapper `meal.ts`'s text handler calls as its
+ * gate-0.5 `interceptCorrectionText`. Looks up the user's awaiting draft
+ * (already user-scoped, T-04-01) and either dispatches it via
+ * `handleAwaitingText` and reports `true` (the caller must return
+ * immediately — no claim, no ack, no paid pipeline), or reports `false`
+ * when there is nothing awaiting so `meal.ts` proceeds with its normal
+ * gate sequence.
+ */
+export function createCorrectionTextHandler(d: CorrectionHandlerDeps) {
+  const findAwaitingDraft = d.findAwaitingDraft ?? findAwaitingDraftReal;
+
+  return async (ctx: BotContext, user: { id: number }): Promise<boolean> => {
+    const draft = await findAwaitingDraft(d.db, user.id);
+    if (!draft) {
+      return false;
+    }
+    await handleAwaitingText(d, ctx, user, draft);
+    return true;
   };
 }

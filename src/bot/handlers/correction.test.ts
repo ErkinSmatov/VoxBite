@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createCorrectionCallbackHandler, type CorrectionHandlerDeps } from './correction.js';
+import {
+  createCorrectionCallbackHandler,
+  createCorrectionTextHandler,
+  handleAwaitingText,
+  type CorrectionHandlerDeps,
+} from './correction.js';
 import { GRAM_STEP } from '../../application/corrections.js';
 import { correctionCopy } from '../formatting/correction-copy.js';
 import type { DraftComponent, PersistedDraft } from '../../application/types.js';
@@ -64,6 +69,28 @@ function makeCtx(data: string, opts: { telegramId?: number } = {}) {
   return { ctx, edits };
 }
 
+/** A plain incoming text message ctx (not a callback query) — the shape
+ * `handleAwaitingText`/`createCorrectionTextHandler` receive from meal.ts's
+ * gate 0.5. Edits are recorded via `ctx.api.editMessageText`, pinned to the
+ * draft's own chat/message id, never `ctx.editMessageText`. */
+function makeTextCtx(text: string) {
+  const apiEdits: { chatId: number; messageId: number; text: string; other?: unknown }[] = [];
+  const ctx = {
+    message: { text },
+    api: {
+      editMessageText: vi.fn(async (chatId: number, messageId: number, t: string, other?: unknown) => {
+        apiEdits.push({ chatId, messageId, text: t, other });
+        return true;
+      }),
+    },
+  };
+  return { ctx, apiEdits };
+}
+
+function lastApiEdit(edits: { chatId: number; messageId: number; text: string; other?: unknown }[]) {
+  return edits[edits.length - 1];
+}
+
 function makeDeps(overrides: Partial<CorrectionHandlerDeps> & { draft?: PersistedDraft | null } = {}) {
   const order: string[] = [];
   const draft = overrides.draft === undefined ? makeDraft() : overrides.draft;
@@ -120,6 +147,18 @@ function makeDeps(overrides: Partial<CorrectionHandlerDeps> & { draft?: Persiste
     order.push('deleteSavedEntry');
     return { ok: true as const };
   });
+  const findAwaitingDraft = vi.fn(async () => {
+    order.push('findAwaitingDraft');
+    return draft;
+  });
+  const applyTypedGrams = vi.fn(async () => {
+    order.push('applyTypedGrams');
+    return { ok: true as const, components: draft ? draft.components : [] };
+  });
+  const addComponent = vi.fn(async () => {
+    order.push('addComponent');
+    return { ok: true as const, components: draft ? draft.components : [] };
+  });
 
   const deps: CorrectionHandlerDeps = {
     db: {} as never,
@@ -137,6 +176,9 @@ function makeDeps(overrides: Partial<CorrectionHandlerDeps> & { draft?: Persiste
     confirmMeal: confirmMeal as never,
     recomputeSavedEntry: recomputeSavedEntry as never,
     deleteSavedEntry: deleteSavedEntry as never,
+    findAwaitingDraft: findAwaitingDraft as never,
+    applyTypedGrams: applyTypedGrams as never,
+    addComponent: addComponent as never,
     now: () => FIXED_NOW,
     ...overrides,
   };
@@ -156,6 +198,9 @@ function makeDeps(overrides: Partial<CorrectionHandlerDeps> & { draft?: Persiste
     confirmMeal,
     recomputeSavedEntry,
     deleteSavedEntry,
+    findAwaitingDraft,
+    applyTypedGrams,
+    addComponent,
   };
 }
 
@@ -337,5 +382,123 @@ describe('createCorrectionCallbackHandler', () => {
     expect(readDraftIndex).toBeGreaterThanOrEqual(0);
     expect(swapCandidateIndex).toBeGreaterThan(readDraftIndex);
     expect(d.order[0]).toBe('findOnboardedUser');
+  });
+});
+
+describe('handleAwaitingText (D-04 text gate, plan 10)', () => {
+  const USER = { id: 42 };
+
+  it('typed-grams success: applies the grams and redraws level 2 against the draft chat/message id', async () => {
+    const draft = makeDraft({ awaitingInput: { kind: 'typed_grams', componentIndex: 0 } });
+    const d = makeDeps({ draft });
+    const { ctx, apiEdits } = makeTextCtx('200');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.applyTypedGrams).toHaveBeenCalledWith({}, 7, 42, 0, '200', FIXED_NOW);
+    const last = lastApiEdit(apiEdits);
+    expect(last?.chatId).toBe(draft.chatId);
+    expect(last?.messageId).toBe(draft.messageId);
+    expect(last?.text).toContain('курица');
+  });
+
+  it('typed-grams rejection: leaves the awaiting flag untouched and shows the retry copy (CORRECT-04)', async () => {
+    const draft = makeDraft({ awaitingInput: { kind: 'typed_grams', componentIndex: 0 } });
+    const d = makeDeps({
+      draft,
+      applyTypedGrams: vi.fn(async () => ({ ok: false as const, reason: 'invalid_grams' as const })) as never,
+    });
+    const { ctx, apiEdits } = makeTextCtx('много');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.clearAwaitingInput).not.toHaveBeenCalled();
+    const last = lastApiEdit(apiEdits);
+    expect(last?.text).toContain(correctionCopy.gramsRejected);
+  });
+
+  it('add-component success: appends the component and redraws level 1', async () => {
+    const draft = makeDraft({ awaitingInput: { kind: 'add_component' } });
+    const newComponent = { ...makeComponent(), component: 'сметана' };
+    const addComponent = vi.fn(async () => ({
+      ok: true as const,
+      components: [...draft.components, newComponent],
+    }));
+    const d = makeDeps({ draft, addComponent: addComponent as never });
+    const { ctx, apiEdits } = makeTextCtx('сметана');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(addComponent).toHaveBeenCalledWith(
+      {},
+      7,
+      42,
+      'сметана',
+      { embedder: d.deps.embedder, repo: d.deps.repo },
+      FIXED_NOW,
+    );
+    const last = lastApiEdit(apiEdits);
+    expect(last?.text).toContain('сметана');
+  });
+
+  it('add-component too-long text: records ZERO embedder calls end-to-end and leaves the flag set (T-04-03)', async () => {
+    const draft = makeDraft({ awaitingInput: { kind: 'add_component' } });
+    const addComponent = vi.fn(async () => ({ ok: false as const, reason: 'text_too_long' as const }));
+    const d = makeDeps({ draft, addComponent: addComponent as never });
+    const { ctx, apiEdits } = makeTextCtx('а'.repeat(200));
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(addComponent).toHaveBeenCalledTimes(1);
+    expect(d.clearAwaitingInput).not.toHaveBeenCalled();
+    const last = lastApiEdit(apiEdits);
+    expect(last?.text).toContain(correctionCopy.componentTooLong);
+  });
+
+  it('an expired draft (TTL crossed between findAwaitingDraft and dispatch): marks abandoned, clears the flag, shows expired copy', async () => {
+    const staleCreatedAt = new Date(FIXED_NOW.getTime() - 25 * 3600_000);
+    const draft = makeDraft({
+      awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
+      createdAt: staleCreatedAt,
+    });
+    const d = makeDeps({ draft });
+    const { ctx, apiEdits } = makeTextCtx('200');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.markDraftStatus).toHaveBeenCalledWith({}, 7, 42, 'abandoned');
+    expect(d.clearAwaitingInput).toHaveBeenCalledWith({}, 7, 42);
+    expect(d.applyTypedGrams).not.toHaveBeenCalled();
+    const last = lastApiEdit(apiEdits);
+    expect(last?.text).toBe(correctionCopy.expired);
+  });
+});
+
+describe('createCorrectionTextHandler (D-04 gate, plan 10)', () => {
+  const USER = { id: 42 };
+
+  it('nothing awaiting: findAwaitingDraft returns null, reports false, dispatches nothing', async () => {
+    const d = makeDeps({ draft: null });
+    const handler = createCorrectionTextHandler(d.deps);
+    const { ctx } = makeTextCtx('омлет');
+
+    const consumed = await handler(ctx as never, USER);
+
+    expect(consumed).toBe(false);
+    expect(d.applyTypedGrams).not.toHaveBeenCalled();
+    expect(d.addComponent).not.toHaveBeenCalled();
+  });
+
+  it('something awaiting: reports true and dispatches into handleAwaitingText', async () => {
+    const draft = makeDraft({ awaitingInput: { kind: 'typed_grams', componentIndex: 0 } });
+    const d = makeDeps({ draft });
+    const handler = createCorrectionTextHandler(d.deps);
+    const { ctx } = makeTextCtx('200');
+
+    const consumed = await handler(ctx as never, USER);
+
+    expect(consumed).toBe(true);
+    expect(d.findAwaitingDraft).toHaveBeenCalledWith({}, 42);
+    expect(d.applyTypedGrams).toHaveBeenCalledTimes(1);
   });
 });
