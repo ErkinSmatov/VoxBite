@@ -134,6 +134,15 @@ export function createVoiceHandler(d: MealHandlerDeps) {
     // 5. Ack — VOICE-02/D-13, this is the message the pipeline edits in place.
     const ack = await ctx.reply(pipelineCopy.ack);
 
+    // D-07: the diary day is frozen from the message's OWN timestamp, not
+    // from when the pipeline happens to run. `message.date` is Unix seconds;
+    // a missing/zero value should not block a meal, but must be visible.
+    const rawDate = ctx.message?.date ?? 0;
+    if (rawDate === 0) {
+      console.error(`meal handler: update ${updateId} has no message.date, falling back to receipt time`);
+    }
+    const receivedAt = rawDate === 0 ? new Date() : new Date(rawDate * 1000);
+
     // 6. Fire the pipeline WITHOUT awaiting — see module doc comment.
     void processMeal(d.deps, {
       updateId,
@@ -142,6 +151,8 @@ export function createVoiceHandler(d: MealHandlerDeps) {
       chatId,
       ackMessageId: ack.message_id,
       input: { kind: 'voice', audio, durationSeconds: voice?.duration ?? 0 },
+      receivedAt,
+      timezone: user.timezone,
     }).catch((err) => {
       console.error(`meal handler: processMeal rejected for update ${updateId} (${err instanceof Error ? err.message : 'unknown error'})`);
     });
@@ -202,6 +213,15 @@ export function createTextHandler(d: MealHandlerDeps) {
     // 4. Ack.
     const ack = await ctx.reply(pipelineCopy.ack);
 
+    // D-07: the diary day is frozen from the message's OWN timestamp, not
+    // from when the pipeline happens to run. `message.date` is Unix seconds;
+    // a missing/zero value should not block a meal, but must be visible.
+    const rawDate = ctx.message?.date ?? 0;
+    if (rawDate === 0) {
+      console.error(`meal handler: update ${updateId} has no message.date, falling back to receipt time`);
+    }
+    const receivedAt = rawDate === 0 ? new Date() : new Date(rawDate * 1000);
+
     // 5. Fire the pipeline WITHOUT awaiting — see module doc comment.
     void processMeal(d.deps, {
       updateId,
@@ -210,6 +230,8 @@ export function createTextHandler(d: MealHandlerDeps) {
       chatId,
       ackMessageId: ack.message_id,
       input: { kind: 'text', text },
+      receivedAt,
+      timezone: user.timezone,
     }).catch((err) => {
       console.error(`meal handler: processMeal rejected for update ${updateId} (${err instanceof Error ? err.message : 'unknown error'})`);
     });

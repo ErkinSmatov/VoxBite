@@ -52,6 +52,7 @@ import {
 } from '../adapters/llm/types.js';
 import { markUpdateStatus } from './idempotency.js';
 import { saveDraft } from './draft-store.js';
+import { deriveLocalDate } from './local-date.js';
 import { logCost, type CostInputs } from './cost-log.js';
 import { isWeakMatch, type DraftComponent, type MealDraft, type MessageEditor } from './types.js';
 import { pipelineCopy } from '../bot/formatting/pipeline-copy.js';
@@ -78,6 +79,10 @@ export interface ProcessMealArgs {
   chatId: number;
   ackMessageId: number;
   input: ProcessMealInput;
+  /** The Telegram message's own timestamp (D-07) -- never `new Date()`. */
+  receivedAt: Date;
+  /** The user's IANA timezone, from `findOnboardedUser` (04-05). */
+  timezone: string;
 }
 
 /**
@@ -257,6 +262,13 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
         componentCount: draftComponents.length,
       };
 
+      // D-07 / 04-RESEARCH.md Pitfall 4: the diary day is frozen HERE, from
+      // the message's own timestamp -- never from `new Date()` (that would
+      // be "when the pipeline happened to run", not "when the user sent the
+      // message"). Every later step (confirm, edit) only ever copies this
+      // stored value.
+      const localDate = deriveLocalDate(args.receivedAt, args.timezone);
+
       await saveDraft(deps.db, {
         userId: args.userId,
         updateId: args.updateId,
@@ -266,6 +278,7 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
         transcript,
         components: draftComponents,
         status: 'draft',
+        localDate,
       });
       draftSaved = true;
 
