@@ -22,14 +22,17 @@ const {
   adjustGrams,
   applyTypedGrams,
   removeComponent,
+  addComponent,
   parseGrams,
   GRAM_STEP,
   MIN_GRAMS,
   MAX_GRAMS,
+  MAX_COMPONENT_TEXT_LENGTH,
 } = await import('./corrections.js');
 const { diaryDrafts } = await import('../db/schema/diary-drafts.js');
 import type { DraftComponent } from './types.js';
-import type { FdcCandidate } from '../domain/fdc-matching/index.js';
+import type { FdcCandidate, FdcRepository } from '../domain/fdc-matching/index.js';
+import type { Embedder } from '../adapters/embeddings/types.js';
 
 type FakeRow = {
   id: number;
@@ -381,6 +384,153 @@ describe('removeComponent', () => {
     const result = await removeComponent(asDb(db), 1, 999, 0, NOW);
 
     expect(result).toEqual({ ok: false, reason: 'not_found' });
+    expect(rows.get(1)?.components).toEqual(before);
+  });
+});
+
+describe('addComponent', () => {
+  // matchIngredient (src/domain/fdc-matching) asserts a 1536-dim embedding
+  // before ever reaching the (fake) repository -- match the real contract.
+  function fakeEmbedder(
+    vectors: number[][] = [new Array(1536).fill(0.01)],
+  ): { embedder: Embedder; calls: string[][] } {
+    const calls: string[][] = [];
+    const embedder: Embedder = {
+      embed: async (texts: string[]) => {
+        calls.push(texts);
+        return vectors;
+      },
+    };
+    return { embedder, calls };
+  }
+
+  function fakeRepo(candidates: FdcCandidate[] = [candidate({ fdcId: 50, similarity: 0.95 })]): FdcRepository {
+    return {
+      findNearest: async () => candidates,
+    };
+  }
+
+  it('parses "сметана 30" into grams 30 and sends componentEn to the embedder', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder, calls } = fakeEmbedder();
+
+    const result = await addComponent(asDb(db), 1, 10, 'сметана 30', { embedder, repo: fakeRepo() }, NOW);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const added = result.components[result.components.length - 1]!;
+      expect(added.grams).toBe(30);
+      expect(added.componentEn).toBe('сметана');
+    }
+    expect(calls).toEqual([['сметана']]);
+  });
+
+  it('defaults grams to 100 for a bare name', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder } = fakeEmbedder();
+
+    const result = await addComponent(asDb(db), 1, 10, 'сметана', { embedder, repo: fakeRepo() }, NOW);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const added = result.components[result.components.length - 1]!;
+      expect(added.grams).toBe(100);
+    }
+  });
+
+  it('appends to the end of the components array, leaving existing components byte-identical', async () => {
+    const existing = sampleComponents();
+    const { db } = makeFakeDb([makeRow({ components: existing })]);
+    const { embedder } = fakeEmbedder();
+
+    const result = await addComponent(asDb(db), 1, 10, 'сметана', { embedder, repo: fakeRepo() }, NOW);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.components.slice(0, existing.length)).toEqual(existing);
+      expect(result.components).toHaveLength(existing.length + 1);
+    }
+  });
+
+  it('sets candidates/chosenFdcId/weakMatch from matchIngredient\'s return value', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder } = fakeEmbedder();
+    const strongCandidate = candidate({ fdcId: 77, similarity: 0.95 });
+
+    const result = await addComponent(
+      asDb(db),
+      1,
+      10,
+      'сметана',
+      { embedder, repo: fakeRepo([strongCandidate]) },
+      NOW,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const added = result.components[result.components.length - 1]!;
+      expect(added.candidates).toEqual([strongCandidate]);
+      expect(added.chosenFdcId).toBe(77);
+      expect(added.weakMatch).toBe(false);
+    }
+  });
+
+  it('appends a flagged, never-dropped component when matchIngredient returns no candidates', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder } = fakeEmbedder();
+
+    const result = await addComponent(asDb(db), 1, 10, 'неизвестный ингредиент', { embedder, repo: fakeRepo([]) }, NOW);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const added = result.components[result.components.length - 1]!;
+      expect(added.chosenFdcId).toBeNull();
+      expect(added.weakMatch).toBe(true);
+    }
+  });
+
+  it('refuses text over MAX_COMPONENT_TEXT_LENGTH before calling the embedder', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder, calls } = fakeEmbedder();
+    const longText = 'а'.repeat(MAX_COMPONENT_TEXT_LENGTH + 1);
+
+    const result = await addComponent(asDb(db), 1, 10, longText, { embedder, repo: fakeRepo() }, NOW);
+
+    expect(result).toEqual({ ok: false, reason: 'text_too_long' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses empty/whitespace-only text before calling the embedder', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder, calls } = fakeEmbedder();
+
+    const result = await addComponent(asDb(db), 1, 10, '   ', { embedder, repo: fakeRepo() }, NOW);
+
+    expect(result).toEqual({ ok: false, reason: 'empty_text' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('calls the embedder exactly once per addComponent call', async () => {
+    const { db } = makeFakeDb([makeRow()]);
+    const { embedder, calls } = fakeEmbedder();
+
+    await addComponent(asDb(db), 1, 10, 'сметана', { embedder, repo: fakeRepo() }, NOW);
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it('leaves the draft unmodified and reports match_failed when the embedder rejects', async () => {
+    const { db, rows } = makeFakeDb([makeRow()]);
+    const before = rows.get(1)?.components;
+    const embedder: Embedder = {
+      embed: async () => {
+        throw new Error('embedding provider down');
+      },
+    };
+
+    const result = await addComponent(asDb(db), 1, 10, 'сметана', { embedder, repo: fakeRepo() }, NOW);
+
+    expect(result).toEqual({ ok: false, reason: 'match_failed' });
     expect(rows.get(1)?.components).toEqual(before);
   });
 });

@@ -1,9 +1,9 @@
 /**
  * corrections — the four persisted-draft mutations behind CORRECT-03..06:
  * `swapCandidate`, `adjustGrams`/`applyTypedGrams`, `removeComponent`,
- * `addComponent` (Task 2). Plan 09's Telegram handlers only ever dispatch a
- * button tap or a free-text reply into one of these functions; every rule
- * about WHAT is a valid correction lives here, unit-testable without a bot.
+ * `addComponent`. Plan 09's Telegram handlers only ever dispatch a button
+ * tap or a free-text reply into one of these functions; every rule about
+ * WHAT is a valid correction lives here, unit-testable without a bot.
  *
  * Two hard rules restated from `src/application/types.ts` (this file is
  * `src/application/`, so both apply): never import `grammy`, and never hold
@@ -33,6 +33,8 @@
  * which is health data.
  */
 import type { Db } from '../db/client.js';
+import { matchIngredient, type FdcRepository } from '../domain/fdc-matching/index.js';
+import type { Embedder } from '../adapters/embeddings/types.js';
 import { clearAwaitingInput, readDraft, updateDraftComponents } from './draft-store.js';
 import { isDraftExpired, isWeakMatch, type DraftComponent } from './types.js';
 
@@ -50,11 +52,10 @@ export const MIN_GRAMS = 1;
 export const MAX_GRAMS = 5000;
 
 /**
- * Length bound for `addComponent`'s (Task 2) free text, enforced BEFORE the
- * paid embedding call (T-04-03). Mirrors `src/bot/handlers/meal.ts`'s
+ * Length bound for `addComponent`'s free text, enforced BEFORE the paid
+ * embedding call (T-04-03). Mirrors `src/bot/handlers/meal.ts`'s
  * `MAX_TEXT_LENGTH` refuse-don't-truncate precedent, sized down because this
- * is one ingredient name, not a whole meal description. Exported here
- * (Task 1) so Task 2 imports one already-reviewed constant.
+ * is one ingredient name, not a whole meal description.
  */
 export const MAX_COMPONENT_TEXT_LENGTH = 100;
 
@@ -67,11 +68,19 @@ export type CorrectionResult =
   | { ok: true; components: DraftComponent[] }
   | {
       ok: false;
-      reason: 'not_found' | 'expired' | 'out_of_range' | 'invalid_grams' | 'write_failed';
+      reason:
+        | 'not_found'
+        | 'expired'
+        | 'out_of_range'
+        | 'invalid_grams'
+        | 'write_failed'
+        | 'text_too_long'
+        | 'empty_text'
+        | 'match_failed';
     };
 
 /**
- * The single grams parser for BOTH the typed-grams path and the (Task 2)
+ * The single grams parser for BOTH the typed-grams path and the
  * added-component path (04-RESEARCH.md's Don't Hand-Roll entry), so the
  * nonsense-rejection rule cannot diverge between them. Accepts an optional
  * trailing `г`/`Г`/`g`/`G` unit and surrounding whitespace, tolerates a
@@ -270,5 +279,103 @@ export async function removeComponent(
   if (!wrote) {
     return { ok: false, reason: 'write_failed' };
   }
+  return { ok: true, components: updated };
+}
+
+/**
+ * Splits a trailing grams token off free text, e.g. "сметана 30" ->
+ * `{ name: 'сметана', grams: 30 }`; "сметана 30 г" -> same (the trailing
+ * token includes the unit, which `parseGrams` already accepts). When no
+ * trailing token parses as grams, the whole text is the name and grams
+ * default to 100 — a discretionary choice (04-CONTEXT.md), documented here
+ * because the caller cannot see it: the user can tune it afterwards with
+ * the same `±10 г` controls as any other component.
+ */
+function splitTrailingGrams(text: string): { name: string; grams: number } {
+  const tokens = text.split(/\s+/);
+  if (tokens.length > 1) {
+    const last = tokens[tokens.length - 1]!;
+    const parsed = parseGrams(last);
+    if (parsed !== null) {
+      const name = tokens.slice(0, -1).join(' ');
+      if (name !== '') {
+        return { name, grams: parsed };
+      }
+    }
+  }
+  return { name: text, grams: 100 };
+}
+
+/**
+ * CORRECT-06: appends a user-typed missing component to the draft, matched
+ * through the SAME `matchIngredient` path (and the SAME embedding model)
+ * the original decomposition used — never a second matching implementation,
+ * never the decomposition LLM, never STT.
+ *
+ * Order of operations mirrors `meal.ts`'s gate discipline: the length/empty
+ * bound runs BEFORE anything paid, so a runaway or hostile input never
+ * reaches the embedder.
+ *
+ * TRANSLATION RISK, stated rather than glossed over: the FDC index is
+ * English, but the user's typed text is used verbatim as both `component`
+ * (shown to them) and `componentEn` (sent to the embedder) — there is no
+ * translation step here. Querying an English-language index with a Russian
+ * phrase is a real quality risk. If beta matching of added components
+ * proves poor, the fix is a narrow translate-only call added in a later
+ * phase, NOT a second matching implementation in this file.
+ */
+export async function addComponent(
+  db: Db,
+  draftId: number,
+  userId: number,
+  rawText: string,
+  deps: { embedder: Embedder; repo: FdcRepository },
+  now: Date = new Date(),
+): Promise<CorrectionResult> {
+  const trimmed = rawText.trim();
+  if (trimmed === '') {
+    return { ok: false, reason: 'empty_text' };
+  }
+  if (trimmed.length > MAX_COMPONENT_TEXT_LENGTH) {
+    return { ok: false, reason: 'text_too_long' };
+  }
+
+  const draft = await readActionableDraft(db, draftId, userId, now);
+  if (!draft.ok) {
+    return draft;
+  }
+
+  const { name, grams } = splitTrailingGrams(trimmed);
+
+  let candidates;
+  try {
+    const embeddings = await deps.embedder.embed([name]);
+    const embedding = embeddings[0];
+    if (!embedding) {
+      throw new Error('addComponent: embedder returned no vector for a non-empty input');
+    }
+    candidates = await matchIngredient({ embedding, repo: deps.repo });
+  } catch {
+    console.error(`corrections: addComponent match failed for draft ${draftId}`);
+    return { ok: false, reason: 'match_failed' };
+  }
+
+  const newComponent: DraftComponent = {
+    component: name,
+    componentEn: name,
+    grams,
+    candidates,
+    chosenFdcId: candidates[0]?.fdcId ?? null,
+    weakMatch: isWeakMatch(candidates),
+  };
+
+  const updated = [...draft.components, newComponent];
+
+  const wrote = await updateDraftComponents(db, draftId, userId, updated);
+  if (!wrote) {
+    return { ok: false, reason: 'write_failed' };
+  }
+
+  await clearAwaitingInput(db, draftId, userId);
   return { ok: true, components: updated };
 }
