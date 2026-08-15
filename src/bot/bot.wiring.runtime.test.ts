@@ -58,6 +58,11 @@ vi.mock('./pipeline-wiring.js', () => ({
   buildMealHandlerDeps: () => ({ db: {}, token: 't', deps: {} }),
 }));
 
+// Same reasoning for the Phase 4 correction deps — no real embedder/repo.
+vi.mock('./correction-wiring.js', () => ({
+  buildCorrectionHandlerDeps: () => ({ db: {}, embedder: {}, repo: {} }),
+}));
+
 vi.mock('./storage/pg-storage-adapter.js', () => ({
   createPgStorageAdapter: () => ({}),
 }));
@@ -106,5 +111,13 @@ describe('createBot runtime registration order (D-05 / T-02-23)', () => {
 
   it('registers the error handler', () => {
     expect(events).toContain('catch');
+  });
+
+  it('registers the Phase 4 crc: callbackQuery dispatcher after the allowlist gate', () => {
+    const allowlistIndex = events.indexOf('use:allowlist');
+    const crcIndex = events.findIndex((e) => e.startsWith('callbackQuery:') && e.includes('crc'));
+
+    expect(crcIndex).toBeGreaterThanOrEqual(0);
+    expect(crcIndex).toBeGreaterThan(allowlistIndex);
   });
 });
