@@ -1,16 +1,20 @@
 /**
- * confirm-meal — turns a confirmed draft into a durable `diary` row. This is
- * the plan where the product becomes trustworthy per PROJECT.md's Core
- * Value: every number written here comes from `calculateTotal()` — the SAME
- * function that drew the `≈` preview on the correction card — and every
- * absent nutrient stays `null` rather than becoming a comfortable-looking
- * `0`. Adding a second summation anywhere is the specific failure D-03
- * forbids.
+ * confirm-meal — turns a confirmed draft into a durable `diary` row, keeps
+ * an already-saved entry editable through the same machinery, and deletes
+ * one for real when the user asks twice. This is the plan where the product
+ * becomes trustworthy per PROJECT.md's Core Value: every number written
+ * here comes from `calculateTotal()` — the SAME function that drew the `≈`
+ * preview on the correction card — and every absent nutrient stays `null`
+ * rather than becoming a comfortable-looking `0`. Adding a second
+ * summation anywhere is the specific failure D-03 forbids.
  *
- * Implements D-06 (the diary<->draft back-link, set immediately after
- * insert), D-07 (the diary day is frozen at message receipt and NEVER
- * recomputed), and D-10 (confirmation is refused while any component has
- * no FDC match at all).
+ * Implements D-05 (editing a saved entry re-runs the same correction
+ * machinery over the same draft row), D-06 (the diary<->draft back-link,
+ * set immediately after insert), D-07 (the diary day is frozen at message
+ * receipt and NEVER recomputed — see `recomputeSavedEntry`'s comment), D-08
+ * (a real, permanent delete, only after an explicit second confirmation —
+ * no reversible-flag column), and D-10 (confirmation is refused while any
+ * component has no FDC match at all).
  *
  * Two hard rules restated from `src/application/types.ts` (this file is
  * `src/application/`, so both apply): never import `grammy`, and never hold
@@ -20,18 +24,25 @@
  * IDOR RULE (same as `draft-store.ts`): a `draftId` arriving from Telegram
  * `callback_data` is user-controlled input, never authorization. Every read
  * goes through `draft-store.ts`'s user-scoped helpers, and every direct
- * `diary` write in this file is filtered by
- * `and(eq(diary.id, ...), eq(diary.userId, userId))` or carries `userId` on
- * insert — there is no unscoped overload.
+ * `diary` UPDATE/DELETE in this file is filtered by
+ * `and(eq(diary.id, ...), eq(diary.userId, userId))` (or carries `userId`
+ * on insert) — there is no unscoped overload.
  *
  * LOGGING RULE: nothing in this file logs transcript, description or
  * component text — only the operation name and the draft/diary id (the
  * `voice-pipeline.ts` logging invariant, T-04-07).
  */
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { diary } from '../db/schema/diary.js';
 import { calculateTotal, type TotalInputItem } from '../domain/nutrition/index.js';
-import { claimConfirm, linkDiaryRow, markDraftStatus, readDraft } from './draft-store.js';
+import {
+  claimAbandon,
+  claimConfirm,
+  linkDiaryRow,
+  markDraftStatus,
+  readDraft,
+} from './draft-store.js';
 import { isDraftExpired, type DraftComponent, type PersistedDraft } from './types.js';
 
 /** `diary.description` is `notNull` — descriptions never exceed this length. */
@@ -220,4 +231,132 @@ export async function confirmMeal(
     console.error(`confirm-meal: diary insert failed for draft ${draftId}`);
     return { ok: false, reason: 'write_failed' };
   }
+}
+
+export type RecomputeSavedEntryResult =
+  | { ok: true; diaryId: number }
+  | { ok: false; reason: 'not_found' | 'not_saved' | 'blocked'; blockedComponent?: string };
+
+/**
+ * CORRECT-08: the edit path for an already-saved entry. Reads the scoped
+ * draft; requires `status === 'confirmed'` and `diaryId !== null`
+ * (`not_saved` otherwise); runs `findBlockingComponent` (a saved entry must
+ * not be edited INTO an untrustworthy state either — `blocked` otherwise);
+ * recomputes with `calculateTotal` and UPDATEs the linked `diary` row's
+ * nutrient columns plus `description`, scoped by
+ * `and(eq(diary.id, ...), eq(diary.userId, userId))`.
+ *
+ * Deliberately does NOT touch `localDate` (D-07/Pitfall 4) — editing
+ * yesterday's entry today must never migrate it to another day. There is no
+ * second edit code path: `corrections.ts` (plan 07) mutates the same draft
+ * row this function reads; this function only re-derives the diary
+ * snapshot afterwards (D-05/D-06).
+ */
+export async function recomputeSavedEntry(
+  db: Db,
+  draftId: number,
+  userId: number,
+  // Accepted for interface parity with confirmMeal/deleteSavedEntry and
+  // plan 09's call sites; unused here because a confirmed draft is never
+  // subject to the D-11 expiry check (isDraftExpired's own exemption).
+  _now: Date = new Date(),
+): Promise<RecomputeSavedEntryResult> {
+  const draft = await readDraft(db, draftId, userId);
+  if (!draft) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  if (draft.status !== 'confirmed' || draft.diaryId === null) {
+    return { ok: false, reason: 'not_saved' };
+  }
+
+  const blocking = findBlockingComponent(draft.components);
+  if (blocking) {
+    return { ok: false, reason: 'blocked', blockedComponent: blocking.component };
+  }
+
+  const diaryId = draft.diaryId;
+  const total = calculateTotal(toTotalInputItems(draft.components));
+
+  // D-07/Pitfall 4: localDate is deliberately NOT part of this payload --
+  // editing a saved entry must never move it to another day.
+  await db
+    .update(diary)
+    .set({
+      kcal: total.kcal,
+      proteinG: total.proteinG,
+      fatG: total.fatG,
+      carbsG: total.carbsG,
+      sugarG: total.sugarG,
+      description: buildDiaryDescription(draft),
+    })
+    .where(and(eq(diary.id, diaryId), eq(diary.userId, userId)));
+
+  return { ok: true, diaryId };
+}
+
+export type DeleteSavedEntryResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_confirmed' | 'not_found' | 'not_saved' | 'already_deleted' };
+
+/**
+ * D-08: a real, permanent delete — no reversible-flag column, no tombstone
+ * row. TECH_SPEC §10 treats this as health data, and D-08 rejected a
+ * reversible-flag approach precisely because every future diary query
+ * would then have to remember a filter, and forgetting it once makes the
+ * totals lie.
+ *
+ * `confirmed` is a structural reminder, not decoration: the caller (plan
+ * 09's handler) must have already collected an explicit second
+ * confirmation (`btnDeleteYes`) before calling this with `true`. Requiring
+ * it here makes the two-step prompt testable at this layer, not only in the
+ * handler.
+ *
+ * `claimAbandon(..., 'confirmed')` runs BEFORE the DELETE so a repeated tap
+ * loses the race and short-circuits into `already_deleted` rather than
+ * attempting a second DELETE.
+ *
+ * The draft row itself is NOT deleted — it becomes `abandoned`, retaining
+ * the transcript. This is the known retention debt recorded in
+ * `types.ts`'s `DRAFT_TTL_HOURS` comment: there is no purge scheduler in
+ * this phase, and these rows hold sensitive text.
+ */
+export async function deleteSavedEntry(
+  db: Db,
+  draftId: number,
+  userId: number,
+  confirmed: boolean,
+  // Accepted for interface parity with confirmMeal and plan 09's call
+  // sites; unused here for the same reason as recomputeSavedEntry's _now.
+  _now: Date = new Date(),
+): Promise<DeleteSavedEntryResult> {
+  if (!confirmed) {
+    return { ok: false, reason: 'not_confirmed' };
+  }
+
+  const draft = await readDraft(db, draftId, userId);
+  if (!draft) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  // Deliberately checks diaryId only, NOT status === 'confirmed': after a
+  // first successful delete the draft's status is already 'abandoned' (its
+  // diaryId is left in place, see the comment below), and a second call
+  // must still reach claimAbandon so it can lose the CAS race and report
+  // already_deleted, rather than being turned away one step earlier by a
+  // status check that would never let a repeat call observe that outcome.
+  if (draft.diaryId === null) {
+    return { ok: false, reason: 'not_saved' };
+  }
+
+  const diaryId = draft.diaryId;
+
+  const claimed = await claimAbandon(db, draftId, userId, 'confirmed');
+  if (!claimed) {
+    return { ok: false, reason: 'already_deleted' };
+  }
+
+  await db.delete(diary).where(and(eq(diary.id, diaryId), eq(diary.userId, userId)));
+
+  return { ok: true };
 }

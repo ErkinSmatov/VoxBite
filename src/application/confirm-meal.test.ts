@@ -19,7 +19,8 @@ vi.mock('drizzle-orm', async (importOriginal) => {
   };
 });
 
-const { confirmMeal, findBlockingComponent, buildDiaryDescription } = await import('./confirm-meal.js');
+const { confirmMeal, recomputeSavedEntry, deleteSavedEntry, findBlockingComponent, buildDiaryDescription } =
+  await import('./confirm-meal.js');
 const { diaryDrafts } = await import('../db/schema/diary-drafts.js');
 const { diary } = await import('../db/schema/diary.js');
 import type { DraftComponent, PersistedDraft } from './types.js';
@@ -27,9 +28,8 @@ import type { FdcCandidate } from '../domain/fdc-matching/index.js';
 
 // ---------------------------------------------------------------------------
 // Fake Db -- supports the exact drizzle chains confirm-meal.ts and
-// draft-store.ts issue: select/update on diaryDrafts, insert on diary. No
-// real connection is opened. (Extended in Task 2 to also support update()
-// and delete() on diary, for recomputeSavedEntry/deleteSavedEntry.)
+// draft-store.ts issue: select/update on diaryDrafts, insert/update/delete
+// on diary. No real connection is opened.
 // ---------------------------------------------------------------------------
 
 type EqCondition = { kind: 'eq'; column: unknown; value: unknown };
@@ -65,6 +65,13 @@ type DiaryRow = {
   draftId: number;
 };
 
+function leaves(condition: Condition): EqCondition[] {
+  if (condition.kind === 'and') {
+    return condition.conditions.flatMap((c) => leaves(c as Condition));
+  }
+  return [condition];
+}
+
 function matchesDraft(condition: Condition, row: DraftRow): boolean {
   if (condition.kind === 'and') {
     return condition.conditions.every((c) => matchesDraft(c as Condition, row));
@@ -75,12 +82,24 @@ function matchesDraft(condition: Condition, row: DraftRow): boolean {
   throw new Error('unexpected eq() column against diaryDrafts in test');
 }
 
-function makeFakeDb(initialDrafts: DraftRow[] = []) {
+function matchesDiary(condition: Condition, row: DiaryRow): boolean {
+  if (condition.kind === 'and') {
+    return condition.conditions.every((c) => matchesDiary(c as Condition, row));
+  }
+  if (condition.column === diary.id) return row.id === condition.value;
+  if (condition.column === diary.userId) return row.userId === condition.value;
+  throw new Error('unexpected eq() column against diary in test');
+}
+
+function makeFakeDb(initialDrafts: DraftRow[] = [], initialDiaryRows: DiaryRow[] = []) {
   const draftRows = new Map(initialDrafts.map((r) => [r.id, { ...r }]));
-  const diaryRows = new Map<number, DiaryRow>();
-  let nextDiaryId = 1;
+  const diaryRows = new Map(initialDiaryRows.map((r) => [r.id, { ...r }]));
+  let nextDiaryId = diaryRows.size === 0 ? 1 : Math.max(...diaryRows.keys()) + 1;
 
   const diaryInserts: unknown[] = [];
+  const diaryUpdates: Partial<DiaryRow>[] = [];
+  const diaryDeleteWhereColumns: unknown[][] = [];
+  const diaryUpdateWhereColumns: unknown[][] = [];
 
   function toDraftSelectShape(row: DraftRow) {
     const { updatedAt: _updatedAt, ...rest } = row;
@@ -108,30 +127,47 @@ function makeFakeDb(initialDrafts: DraftRow[] = []) {
       };
     },
     update(table: unknown) {
-      if (table !== diaryDrafts) {
-        throw new Error('unexpected update() table in test');
+      if (table === diaryDrafts) {
+        return {
+          set(patch: Partial<DraftRow>) {
+            return {
+              where(condition: Condition) {
+                const matched = [...draftRows.values()].filter((row) => matchesDraft(condition, row));
+                const promise = Promise.resolve().then(() => {
+                  for (const row of matched) Object.assign(row, patch);
+                  return undefined;
+                });
+                return {
+                  then: promise.then.bind(promise),
+                  catch: promise.catch.bind(promise),
+                  finally: promise.finally.bind(promise),
+                  returning(_c: unknown) {
+                    return promise.then(() => matched.map((r) => ({ id: r.id })));
+                  },
+                };
+              },
+            };
+          },
+        };
       }
-      return {
-        set(patch: Partial<DraftRow>) {
-          return {
-            where(condition: Condition) {
-              const matched = [...draftRows.values()].filter((row) => matchesDraft(condition, row));
-              const promise = Promise.resolve().then(() => {
-                for (const row of matched) Object.assign(row, patch);
-                return undefined;
-              });
-              return {
-                then: promise.then.bind(promise),
-                catch: promise.catch.bind(promise),
-                finally: promise.finally.bind(promise),
-                returning(_c: unknown) {
-                  return promise.then(() => matched.map((r) => ({ id: r.id })));
-                },
-              };
-            },
-          };
-        },
-      };
+      if (table === diary) {
+        return {
+          set(patch: Partial<DiaryRow>) {
+            diaryUpdates.push(patch);
+            return {
+              where(condition: Condition) {
+                diaryUpdateWhereColumns.push(leaves(condition).map((c) => c.column));
+                const matched = [...diaryRows.values()].filter((row) => matchesDiary(condition, row));
+                return Promise.resolve().then(() => {
+                  for (const row of matched) Object.assign(row, patch);
+                  return undefined;
+                });
+              },
+            };
+          },
+        };
+      }
+      throw new Error('unexpected update() table in test');
     },
     insert(table: unknown) {
       if (table !== diary) {
@@ -150,9 +186,30 @@ function makeFakeDb(initialDrafts: DraftRow[] = []) {
         },
       };
     },
+    delete(table: unknown) {
+      if (table !== diary) {
+        throw new Error('unexpected delete() table in test');
+      }
+      return {
+        where(condition: Condition) {
+          diaryDeleteWhereColumns.push(leaves(condition).map((c) => c.column));
+          const matched = [...diaryRows.values()].filter((row) => matchesDiary(condition, row));
+          for (const row of matched) diaryRows.delete(row.id);
+          return Promise.resolve();
+        },
+      };
+    },
   };
 
-  return { db, draftRows, diaryRows, diaryInserts };
+  return {
+    db,
+    draftRows,
+    diaryRows,
+    diaryInserts,
+    diaryUpdates,
+    diaryDeleteWhereColumns,
+    diaryUpdateWhereColumns,
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -431,5 +488,182 @@ describe('confirmMeal', () => {
 
     expect(result).toEqual({ ok: false, reason: 'expired' });
     expect(diaryInserts).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// recomputeSavedEntry (editSaved, CORRECT-08)
+// ---------------------------------------------------------------------------
+
+describe('recomputeSavedEntry (editSaved)', () => {
+  it('editSaved: UPDATEs the linked diary row to calculateTotal of the new components, issues no INSERT', async () => {
+    const savedDiaryRow: DiaryRow = {
+      id: 50,
+      userId: 10,
+      localDate: '2026-08-15',
+      description: 'курица с рисом и брокколи',
+      kcal: 1,
+      proteinG: 1,
+      fatG: 1,
+      carbsG: 1,
+      sugarG: 1,
+      draftId: 1,
+    };
+    const changedComponents = [
+      component({ candidates: [candidate({ fdcId: 1, kcal: 200 })], chosenFdcId: 1, grams: 100 }),
+    ];
+    const { db, diaryRows, diaryInserts } = makeFakeDb(
+      [makeDraftRow({ status: 'confirmed', diaryId: 50, components: changedComponents })],
+      [savedDiaryRow],
+    );
+
+    const result = await recomputeSavedEntry(asDb(db), 1, 10);
+
+    expect(result).toEqual({ ok: true, diaryId: 50 });
+    expect(diaryInserts).toHaveLength(0);
+    expect(diaryRows.get(50)?.kcal).toBeCloseTo(200, 5);
+  });
+
+  it('editSaved: never changes the diary row\'s localDate -- the update payload has no localDate key (D-07)', async () => {
+    const savedDiaryRow: DiaryRow = {
+      id: 50,
+      userId: 10,
+      localDate: '2026-08-01',
+      description: 'x',
+      kcal: 1,
+      proteinG: 1,
+      fatG: 1,
+      carbsG: 1,
+      sugarG: 1,
+      draftId: 1,
+    };
+    const { db, diaryUpdates, diaryRows } = makeFakeDb(
+      [makeDraftRow({ status: 'confirmed', diaryId: 50 })],
+      [savedDiaryRow],
+    );
+
+    await recomputeSavedEntry(asDb(db), 1, 10);
+
+    expect(diaryUpdates).toHaveLength(1);
+    expect(Object.prototype.hasOwnProperty.call(diaryUpdates[0], 'localDate')).toBe(false);
+    expect(diaryRows.get(50)?.localDate).toBe('2026-08-01');
+  });
+
+  it('editSaved: refuses with blocked when a component now has no FDC match, leaving the diary row untouched', async () => {
+    const savedDiaryRow: DiaryRow = {
+      id: 50,
+      userId: 10,
+      localDate: '2026-08-15',
+      description: 'x',
+      kcal: 42,
+      proteinG: 1,
+      fatG: 1,
+      carbsG: 1,
+      sugarG: 1,
+      draftId: 1,
+    };
+    const nowBlocked = [component({ component: 'потерялся', candidates: [], chosenFdcId: null })];
+    const { db, diaryRows, diaryUpdates } = makeFakeDb(
+      [makeDraftRow({ status: 'confirmed', diaryId: 50, components: nowBlocked })],
+      [savedDiaryRow],
+    );
+
+    const result = await recomputeSavedEntry(asDb(db), 1, 10);
+
+    expect(result).toEqual({ ok: false, reason: 'blocked', blockedComponent: 'потерялся' });
+    expect(diaryUpdates).toHaveLength(0);
+    expect(diaryRows.get(50)?.kcal).toBe(42);
+  });
+
+  it('editSaved: refuses without writing when the draft status is not confirmed', async () => {
+    const { db, diaryUpdates } = makeFakeDb([makeDraftRow({ status: 'draft', diaryId: null })]);
+
+    const result = await recomputeSavedEntry(asDb(db), 1, 10);
+
+    expect(result).toEqual({ ok: false, reason: 'not_saved' });
+    expect(diaryUpdates).toHaveLength(0);
+  });
+
+  it('editSaved: refuses without writing when the draft has no diaryId', async () => {
+    const { db, diaryUpdates } = makeFakeDb([makeDraftRow({ status: 'confirmed', diaryId: null })]);
+
+    const result = await recomputeSavedEntry(asDb(db), 1, 10);
+
+    expect(result).toEqual({ ok: false, reason: 'not_saved' });
+    expect(diaryUpdates).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteSavedEntry (delete, D-08)
+// ---------------------------------------------------------------------------
+
+describe('deleteSavedEntry (delete)', () => {
+  function savedDraftAndDiary(overrides: Partial<DraftRow> = {}) {
+    const savedDiaryRow: DiaryRow = {
+      id: 50,
+      userId: 10,
+      localDate: '2026-08-15',
+      description: 'x',
+      kcal: 1,
+      proteinG: 1,
+      fatG: 1,
+      carbsG: 1,
+      sugarG: 1,
+      draftId: 1,
+    };
+    return makeFakeDb(
+      [makeDraftRow({ status: 'confirmed', diaryId: 50, ...overrides })],
+      [savedDiaryRow],
+    );
+  }
+
+  it('delete: DELETEs the diary row scoped by (id, user_id) and marks the draft abandoned via claimAbandon', async () => {
+    const { db, diaryRows, draftRows } = savedDraftAndDiary();
+
+    const result = await deleteSavedEntry(asDb(db), 1, 10, true);
+
+    expect(result).toEqual({ ok: true });
+    expect(diaryRows.has(50)).toBe(false);
+    expect(draftRows.get(1)?.status).toBe('abandoned');
+  });
+
+  it('delete: a second call performs zero additional DELETEs and reports already_deleted', async () => {
+    const { db, diaryDeleteWhereColumns } = savedDraftAndDiary();
+
+    const first = await deleteSavedEntry(asDb(db), 1, 10, true);
+    const second = await deleteSavedEntry(asDb(db), 1, 10, true);
+
+    expect(first).toEqual({ ok: true });
+    expect(second).toEqual({ ok: false, reason: 'already_deleted' });
+    expect(diaryDeleteWhereColumns).toHaveLength(1);
+  });
+
+  it('delete: with confirmed: false records zero DELETEs on the fake Db', async () => {
+    const { db, diaryDeleteWhereColumns } = savedDraftAndDiary();
+
+    const result = await deleteSavedEntry(asDb(db), 1, 10, false);
+
+    expect(result).toEqual({ ok: false, reason: 'not_confirmed' });
+    expect(diaryDeleteWhereColumns).toHaveLength(0);
+  });
+
+  it('delete: for a draft belonging to another user performs no DELETE', async () => {
+    const { db, diaryDeleteWhereColumns } = savedDraftAndDiary();
+
+    const result = await deleteSavedEntry(asDb(db), 1, 999, true);
+
+    expect(result).toEqual({ ok: false, reason: 'not_found' });
+    expect(diaryDeleteWhereColumns).toHaveLength(0);
+  });
+
+  it('delete: every diary UPDATE/DELETE is scoped by both diary.id and diary.userId', async () => {
+    const { db, diaryDeleteWhereColumns } = savedDraftAndDiary();
+
+    await deleteSavedEntry(asDb(db), 1, 10, true);
+
+    const columns = diaryDeleteWhereColumns[0] ?? [];
+    expect(columns).toContain(diary.id);
+    expect(columns).toContain(diary.userId);
   });
 });
