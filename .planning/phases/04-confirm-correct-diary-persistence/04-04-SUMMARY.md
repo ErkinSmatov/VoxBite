@@ -95,3 +95,11 @@ None — no external service configuration required. This plan touches only appl
 ---
 *Phase: 04-confirm-correct-diary-persistence*
 *Completed: 2026-08-15*
+## Self-Check: PASSED
+
+- FOUND: src/application/types.ts
+- FOUND: src/application/draft-store.ts
+- FOUND: src/application/draft-store.test.ts
+- FOUND: .planning/phases/04-confirm-correct-diary-persistence/04-04-SUMMARY.md
+- FOUND commits: 47b7a25, 4d2ff26, 4c5297b, 778c116
+
