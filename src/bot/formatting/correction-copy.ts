@@ -97,7 +97,7 @@ export const correctionCopy = {
 
   /**
    * The line for a component with no FDC candidates at all. Reuses the
-   * existing wording from `result-card.ts` verbatim so the pre- and
+   * existing wording from `result-card.ts` (retired in 04-12) verbatim so the pre- and
    * post-confirm cards never disagree.
    */
   noMatch: 'не нашёл подходящую запись',

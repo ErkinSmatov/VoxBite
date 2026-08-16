@@ -79,8 +79,10 @@ export interface DraftComponent extends DecomposedComponent {
 
 /**
  * Computes `DraftComponent.weakMatch`. Exported so both the orchestration
- * layer (when building a `MealDraft`) and `src/bot/formatting/result-card.ts`
- * (when rendering one) derive the exact same flag from the exact same rule.
+ * layer (when building a `MealDraft`) and
+ * `src/bot/formatting/correction-card.ts` (when rendering one — this is the
+ * Phase 4 renderer; the Phase 3 read-only card it superseded was retired in
+ * 04-12) derive the exact same flag from the exact same rule.
  */
 export function isWeakMatch(candidates: FdcCandidate[]): boolean {
   const top = candidates[0];

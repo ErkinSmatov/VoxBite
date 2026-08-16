@@ -40,7 +40,7 @@ describe('resolveSttModel', () => {
 });
 
 describe('buildMealHandlerDeps', () => {
-  it('returns an object whose deps carries all six PipelineDeps fields, plus top-level db and token, with no network call and no required env', () => {
+  it('returns an object whose deps carries all seven PipelineDeps fields, plus top-level db and token, with no network call and no required env', () => {
     const fakeDb = { marker: 'fake-db' } as never;
     const fakeApi = { editMessageText: vi.fn() };
 
@@ -72,6 +72,7 @@ describe('buildMealHandlerDeps', () => {
     expect(result.deps.embedder).toBeDefined();
     expect(result.deps.repo).toBeDefined();
     expect(result.deps.editor).toBeDefined();
+    expect(result.deps.cardRenderer).toBeDefined();
 
     expect(createTranscriber).toHaveBeenCalledTimes(1);
     expect(createDecomposer).toHaveBeenCalledTimes(1);
