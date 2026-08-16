@@ -57,6 +57,14 @@ carries the listed automated command in its `<automated>` verification. Status s
 | 04-10 T1 | 10 | 5 | D-04 (text routing gate) | T-04-ROUTE | Correction interceptor precedes Phase 3 text handler, after allowlist gate | unit | `npx vitest run src/bot/handlers/correction.test.ts src/bot/bot.wiring.test.ts` | created by 04-10 T1 | ⬜ pending |
 | 04-08 T2 | 08 | 3 | D-08 (hard delete) | T-04-DELETE | Row removed only after explicit confirm | unit | `npx vitest run src/application/confirm-meal.test.ts -t delete` | created by 04-08 T2 | ⬜ pending |
 | 04-04 T3 | 04 | 2 | D-11 (24h expiry) | T-04-REPLAY | Stale draft rejects button taps | unit (fake clock) | `npx vitest run src/application/draft-store.test.ts -t expire` | created by 04-04 T3 (extend) | ⬜ pending |
+| 04-12 T1 | 12 | 1 | CORRECT-01..08, CALC-01, CALC-02, DIARY-01 (unblocks) | T-04-40 | `renderLevel1` output goes through `encodeCrc` only; `createMessageEditor` forwards `replyMarkup` as `{ reply_markup }` only when defined | unit | `npx vitest run src/bot/telegram/draft-card-renderer.test.ts src/bot/telegram/message-editor.test.ts && npx tsc --noEmit` | created by 04-12 T1 | ✅ green |
+| 04-12 T2 | 12 | 1 | CORRECT-01..08, CALC-01, CALC-02, DIARY-01 (unblocks) | T-04-40 | Success path delivers the level-1 card + keyboard; failure/no-food paths byte-identical; `result-card.ts` retired | unit | `npx vitest run src/application/voice-pipeline.test.ts src/bot/pipeline-wiring.test.ts && test ! -f src/bot/formatting/result-card.ts && test ! -f src/bot/formatting/result-card.test.ts && test "$(grep -rl "from '.*result-card" src/ \| wc -l \| tr -d ' ')" = "0" && test "$(grep -rl "result-card" src/ \| grep -v -E 'formatting/(correction-copy\|correction-card)\.ts$' \| wc -l \| tr -d ' ')" = "0" && npx tsc --noEmit` | created by 04-12 T2 | ✅ green |
+| 04-12 T3 | 12 | 1 | CORRECT-01..08, CALC-01, CALC-02, DIARY-01 (unblocks) | — | Entry-point reachability: a real pipeline run emits a `crc:` keyboard the dispatcher can receive | unit | `npx vitest run src/bot/entry-point-reachability.test.ts && npm test && npx tsc --noEmit` | created by 04-12 T3 | ✅ green |
+
+The two mandatory manual-only verifications below remain UNDISCHARGED by this plan: 04-12
+makes them reachable, it does not discharge them. CORRECT-07 (draft survives a bot restart)
+and CALC-02 («нет данных» end to end) both still require the owner's repeat walkthrough of
+`docs/phase-04-manual-checklist.md`.
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

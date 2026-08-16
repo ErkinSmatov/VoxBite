@@ -7,14 +7,18 @@
  * Order of operations (this order is the contract — see 03-06-PLAN.md):
  * 1. Obtain the transcript — the ONLY branch between voice and text.
  * 2. decomposer.decompose(transcript).
- * 3. Empty decomposition (D-08) — edit into `noFood`, mark done, log, return.
+ * 3. Empty decomposition (D-08 Phase 3) — edit into `noFood`, mark done, log, return.
  * 4. Batch-embed every `component_en` in ONE `embedder.embed()` call, then
  *    run `matchIngredient` for each in parallel (03-RESEARCH.md Pitfall 2).
  * 5. Build `DraftComponent[]` — every component survives, weak or absent
  *    matches are flagged, never dropped (D-21).
  * 6. `saveDraft` the row.
- * 7. `editor.editMessage` with `buildResultCard` — same message, edited
- *    in place (D-13).
+ * 7. `editor.editMessage` with `cardRenderer.renderLevel1` — the Phase 4
+ *    level-1 correction card WITH its `crc:` keyboard, same message edited
+ *    in place (D-13 Phase 3 / D-01 Phase 4). 04-12: this replaces the old
+ *    keyboardless `buildResultCard` render, which was 04-UAT.md's blocker —
+ *    a card with no buttons made the entire Phase 4 correction UI
+ *    unreachable from the product's only entry point.
  * 8. `markUpdateStatus(..., 'done')` and one `logCost(...)` call.
  *
  * FAILURE HANDLING (03-RESEARCH.md Pitfall 6 — the governing rule): this
@@ -54,9 +58,14 @@ import { markUpdateStatus } from './idempotency.js';
 import { saveDraft } from './draft-store.js';
 import { deriveLocalDate } from './local-date.js';
 import { logCost, type CostInputs } from './cost-log.js';
-import { isWeakMatch, type DraftComponent, type MealDraft, type MessageEditor } from './types.js';
+import {
+  isWeakMatch,
+  type DraftCardRenderer,
+  type DraftComponent,
+  type MealDraft,
+  type MessageEditor,
+} from './types.js';
 import { pipelineCopy } from '../bot/formatting/pipeline-copy.js';
-import { buildResultCard } from '../bot/formatting/result-card.js';
 import type { ProcessedUpdateStatus } from '../db/schema/processed-updates.js';
 
 export interface PipelineDeps {
@@ -66,6 +75,7 @@ export interface PipelineDeps {
   embedder: Embedder;
   repo: FdcRepository;
   editor: MessageEditor;
+  cardRenderer: DraftCardRenderer;
 }
 
 export type ProcessMealInput =
@@ -250,8 +260,6 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
         };
       });
 
-      const draft: MealDraft = { transcript, source, components: draftComponents };
-
       const successCost: CostInputs = {
         sttSeconds,
         sttUsage,
@@ -269,7 +277,7 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
       // stored value.
       const localDate = deriveLocalDate(args.receivedAt, args.timezone);
 
-      await saveDraft(deps.db, {
+      const draftId = await saveDraft(deps.db, {
         userId: args.userId,
         updateId: args.updateId,
         chatId: args.chatId,
@@ -282,7 +290,8 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
       });
       draftSaved = true;
 
-      await deps.editor.editMessage(args.chatId, args.ackMessageId, buildResultCard(draft));
+      const card = deps.cardRenderer.renderLevel1(draftComponents, draftId);
+      await deps.editor.editMessage(args.chatId, args.ackMessageId, card.text, card.replyMarkup);
       cardDelivered = true;
 
       // Past this point the user already has a correct result card and the

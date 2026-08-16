@@ -20,6 +20,7 @@ import type { Db } from '../db/client.js';
 import type { PipelineDeps } from '../application/voice-pipeline.js';
 import type { MealHandlerDeps } from './handlers/meal.js';
 import { createMessageEditor, type EditableApi } from './telegram/message-editor.js';
+import { createDraftCardRenderer } from './telegram/draft-card-renderer.js';
 
 /**
  * Resolves the raw `.env` override (already trimmed of surrounding
@@ -81,8 +82,9 @@ export function buildMealHandlerDeps(w: MealWiringDeps): MealHandlerDeps {
   const embedder = createEmbedder();
   const repo = createRepository(w.db);
   const editor = createEditor(w.api);
+  const cardRenderer = createDraftCardRenderer();
 
-  const deps: PipelineDeps = { db: w.db, transcriber, decomposer, embedder, repo, editor };
+  const deps: PipelineDeps = { db: w.db, transcriber, decomposer, embedder, repo, editor, cardRenderer };
 
   return { db: w.db, token: w.token, deps };
 }

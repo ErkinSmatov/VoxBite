@@ -2,7 +2,7 @@
  * correction-card — renders the D-01 two-level correction UI (level 1: the
  * whole meal; level 2: a single component's candidate picker), the D-12
  * empty state, and the D-05 post-save confirmed card. This is where the
- * read-only Phase 3 `result-card.ts` becomes an editing surface.
+ * read-only Phase 3 `result-card.ts` (retired in 04-12) becomes an editing surface.
  *
  * Pure functions, no I/O, no grammY import, plain text only (no markup mode
  * option set by the caller) — same invariants `result-card.ts` established: FDC
