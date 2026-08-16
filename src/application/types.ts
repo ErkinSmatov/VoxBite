@@ -104,9 +104,44 @@ export interface MealDraft {
  * (D-13), without importing grammY. `src/bot/` supplies the grammY-backed
  * implementation (plan 03-07); the orchestration layer only ever depends on
  * this interface.
+ *
+ * `replyMarkup` (04-12) is an optional fourth parameter carrying an opaque
+ * inline-keyboard value produced by `DraftCardRenderer` below. Telegram fact
+ * that matters here: omitting `reply_markup` on an `editMessageText` call
+ * LEAVES any previous keyboard in place rather than clearing it (the same
+ * fact `correction.ts`'s `NO_KEYBOARD` constant documents) — so every
+ * failure path in `voice-pipeline.ts`, which edits an ack message that never
+ * had a keyboard, correctly passes nothing here.
  */
 export interface MessageEditor {
-  editMessage(chatId: number, messageId: number, text: string): Promise<void>;
+  editMessage(chatId: number, messageId: number, text: string, replyMarkup?: unknown): Promise<void>;
+}
+
+/**
+ * The text plus opaque reply markup for one rendered card (04-12).
+ * `replyMarkup` is deliberately `unknown` — the application layer must stay
+ * ignorant of Telegram's markup shape; it only forwards the opaque value
+ * back to `MessageEditor.editMessage`.
+ */
+export interface RenderedCard {
+  text: string;
+  replyMarkup: unknown;
+}
+
+/**
+ * The bot-layer port (04-12) that renders the D-01 (Phase 4) level-1
+ * correction card — the meal list plus its `crc:` keyboard — WITHOUT this
+ * layer ever importing grammY's `InlineKeyboard`. `src/bot/telegram/
+ * draft-card-renderer.ts` supplies the only real implementation; the
+ * pipeline only ever depends on this interface (mirrors `MessageEditor`
+ * above).
+ *
+ * `renderLevel1` handles the D-12 (Phase 4) empty-component-list case
+ * itself (both `buildCorrectionCard` and `buildLevel1Keyboard` already
+ * branch on an empty list) — callers never special-case it.
+ */
+export interface DraftCardRenderer {
+  renderLevel1(components: DraftComponent[], draftId: number): RenderedCard;
 }
 
 /** Every terminal, non-success outcome the voice pipeline can reach. */
