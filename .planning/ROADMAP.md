@@ -121,7 +121,7 @@ Plans:
 Plans:
 - [x] 04-01..04-10 — draft store, calc math, correction ops, card/keyboards, callback dispatcher, bot wiring (complete, merged, green)
 - [x] 04-11-PLAN.md — owner-executable manual checklist (`docs/phase-04-manual-checklist.md`)
-- [ ] 04-12-PLAN.md — gap closure: render the level-1 correction card + `crc:` keyboard from the pipeline entry point, add the reachability tripwire, retire `result-card.ts`
+- [x] 04-12-PLAN.md — gap closure: render the level-1 correction card + `crc:` keyboard from the pipeline entry point, add the reachability tripwire, retire `result-card.ts`
 
 ### Phase 5: Diary views
 **Goal**: Users can see how their day and week compare against their calculated targets.
