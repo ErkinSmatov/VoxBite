@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation — data + domain math** - Postgres schema, offline USDA FDC indexing pipeline, and pure domain layer (BMR/TDEE/target calc, FDC embedding matching) — no Telegram, no bot code (completed 2026-08-11)
 - [x] **Phase 2: Bot skeleton + onboarding** - Webhook handler and onboarding conversation that collects profile data and shows calculated КБЖУ targets (completed 2026-08-11)
 - [ ] **Phase 3: Voice pipeline** - Voice/text message → STT → LLM dish decomposition → per-ingredient FDC matching, wired end to end with idempotency
-- [ ] **Phase 4: Confirm/correct + diary persistence** - Candidate-picker correction UX, persisted draft state, deterministic final calculation, diary write, edit/delete saved entries
+- [x] **Phase 4: Confirm/correct + diary persistence** - Candidate-picker correction UX, persisted draft state, deterministic final calculation, diary write, edit/delete saved entries (completed 2026-08-24)
 - [ ] **Phase 5: Diary views** - Daily diary view and weekly summary against targets
 
 ## Phase Details
@@ -122,7 +122,7 @@ Plans:
 - [x] 04-01..04-10 — draft store, calc math, correction ops, card/keyboards, callback dispatcher, bot wiring (complete, merged, green)
 - [x] 04-11-PLAN.md — owner-executable manual checklist (`docs/phase-04-manual-checklist.md`)
 - [x] 04-12-PLAN.md — gap closure: render the level-1 correction card + `crc:` keyboard from the pipeline entry point, add the reachability tripwire, retire `result-card.ts`
-- [ ] 04-13-PLAN.md — gap closure: fix CR-01/CR-02 (typed correction on a reopened saved entry leaked into the paid pipeline and never recomputed the diary row) + real-routing seam regression test
+- [x] 04-13-PLAN.md — gap closure: fix CR-01/CR-02 (typed correction on a reopened saved entry leaked into the paid pipeline and never recomputed the diary row) + real-routing seam regression test
 
 ### Phase 5: Diary views
 **Goal**: Users can see how their day and week compare against their calculated targets.
@@ -144,5 +144,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation — data + domain math | 8/8 | Complete   | 2026-08-11 |
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
-| 4. Confirm/correct + diary persistence | 0/TBD | Not started | - |
+| 4. Confirm/correct + diary persistence | 13/13 | Complete   | 2026-08-24 |
 | 5. Diary views | 0/TBD | Not started | - |
