@@ -336,6 +336,37 @@ describe('findAwaitingDraft', () => {
 
     expect(result).toBeNull();
   });
+
+  it('returns a status: confirmed row with awaiting_input set (gap closure 04-13, CR-01: reopened saved entry)', async () => {
+    const { db } = makeFakeDb([
+      makeRow({
+        id: 1,
+        userId: 10,
+        status: 'confirmed',
+        awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
+      }),
+    ]);
+
+    const result = await findAwaitingDraft(asDb(db), 10);
+
+    expect(result?.id).toBe(1);
+    expect(result?.status).toBe('confirmed');
+  });
+
+  it('does not return a status: abandoned row even with a stale awaiting_input set (gap closure 04-13)', async () => {
+    const { db } = makeFakeDb([
+      makeRow({
+        id: 1,
+        userId: 10,
+        status: 'abandoned',
+        awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
+      }),
+    ]);
+
+    const result = await findAwaitingDraft(asDb(db), 10);
+
+    expect(result).toBeNull();
+  });
 });
 
 describe('isDraftExpired (D-11)', () => {
