@@ -1,5 +1,5 @@
 ---
-status: complete
+status: partial
 phase: 04-confirm-correct-diary-persistence
 source: [04-01-SUMMARY.md, 04-02-SUMMARY.md, 04-03-SUMMARY.md, 04-04-SUMMARY.md, 04-05-SUMMARY.md, 04-06-SUMMARY.md, 04-07-SUMMARY.md, 04-08-SUMMARY.md, 04-09-SUMMARY.md, 04-10-SUMMARY.md, 04-12-SUMMARY.md]
 started: 2026-08-15T09:00:00Z
@@ -8,7 +8,7 @@ updated: 2026-08-15T12:00:00Z
 
 ## Current Test
 
-[testing complete — round 2 signed off by the owner]
+[round 3: owner tested text-based correction on an already-confirmed entry, found scenarios 3/5 leak into the paid pipeline — see round 3 below and the new Gaps entries]
 
 ## Rounds
 
@@ -20,6 +20,19 @@ blocked as a consequence. Full diagnosis retained in the Gaps section below.
 against a restarted bot and signed off with "approved", i.e. every testable scenario passed. The
 sign-off was global rather than per-scenario; results below record that, and scenario 12 is
 recorded as not tested rather than claimed as passed (see its entry).
+
+## Round 3 (post-completion, code-review follow-up)
+
+Owner independently re-tested scenario 3 step 3 (typed grams) and scenario 5 (add component by
+text) — both against an entry the owner had already reopened via `✎ Поправить` after confirming
+it, not a fresh untouched draft. Both leaked into the paid pipeline exactly as
+`04-REVIEW.md` findings CR-01/CR-02 predicted (see Gaps below). Confirmed against live production
+data, not merely re-read code: `diary_drafts` row `id=5` was found with `status='confirmed'` and
+a dangling `awaiting_input={"kind":"add_component"}`, and a stray `diary` row `id=3` ("Говядина
+45г", 91.35 kcal) exists as a duplicate/misrouted entry that should have been merged into the
+already-saved meal (`diary id=2`) instead of becoming its own paid decomposition. The owner was
+advised to delete the stray row themselves via the app's own `🗑 Удалить` flow rather than have it
+edited by hand in the database.
 
 ## Tests
 
@@ -139,6 +152,42 @@ blocked: 0
       `pipeline-wiring.ts` is caught too. Verified: reproducing the original bug (dropping
       `card.replyMarkup` from the `editMessage` call) fails this test on 2 assertions, including
       the text path.
+  debug_session: ""
+
+- truth: "A saved entry can be reopened, corrected via typed input (not just buttons), and the diary row's totals stay current (CORRECT-04/06/08)."
+  status: failed
+  reason: "User reported (round 3): typing '200 г' after tapping ⌨ Ввести граммы on a reopened saved entry, and typing a component description after tapping ➕ Добавить on a reopened saved entry, both leak into the paid voice/text pipeline instead of being applied as a correction. Confirmed against live data: diary_drafts id=5 (status='confirmed', awaiting_input={\"kind\":\"add_component\"}) and a stray diary row id=3 (\"Говядина 45г\", 91.35 kcal, draft_id=6) that should have been merged into diary id=2."
+  severity: blocker
+  test: "round-3 (not in the original 12; a scenario the checklist did not cover — text-based correction of an already-reopened saved entry)"
+  root_cause: |
+    Two independent, compounding defects, first identified by 04-REVIEW.md (CR-01, CR-02) from
+    static code review and now confirmed live:
+
+    CR-01 (routing): `case 'edit'` in `src/bot/handlers/correction.ts:379-383` moves a confirmed
+    draft's card back into the level-1 editing view but does NOT reset the draft's `status` from
+    `'confirmed'` back to `'draft'`. `findAwaitingDraft` (`src/application/draft-store.ts:113-121`)
+    — the ONLY function the D-04 text gate (`meal.ts` gate 0.5 -> `interceptCorrectionText`) uses
+    to decide whether typed text is a correction reply — filters on `status = 'draft'` specifically.
+    Every button that sets `awaiting_input` (`sel`, `gtype`, `add` in `correction.ts`) does so
+    unconditionally, regardless of the draft's current status, so `awaiting_input` gets set on a
+    `'confirmed'` row with no matching read path. The typed reply then falls through `meal.ts`'s
+    normal gate sequence and is processed by `processMeal` as an unrelated new meal message —
+    a real, metered OpenAI spend (decomposition + embedding) for text that was never meant to be
+    a new dish.
+
+    CR-02 (staleness, would surface once CR-01 is fixed): even after routing correctly,
+    `handleAwaitingText` (`src/bot/handlers/correction.ts` ~518-570) never calls
+    `recomputeSavedEntry`, unlike every button-driven correction path (`cand`/`gm`/`gp`/`rm` all
+    call it when `draft.status === 'confirmed'`). A text-based correction of a saved entry would
+    silently leave the `diary` row's kcal/protein/fat/carbs/sugar unchanged even after the
+    underlying components changed.
+  artifacts:
+    - src/bot/handlers/correction.ts
+    - src/application/draft-store.ts
+  missing:
+    - "A decision, made explicit in a plan (not left to the executor): does `case 'edit'` transition the draft's status back to `draft` for the duration of editing (and if so, what un-transitions it — a new confirm claim, a timeout, an explicit 'done editing' action?), OR does `findAwaitingDraft` widen its filter to also match `status = 'confirmed'` rows? These have different consequences for `diary_id`/CAS semantics and must be chosen deliberately, the same way 04-12's plan review forced an explicit choice rather than a guess."
+    - "handleAwaitingText calling recomputeSavedEntry when the draft's status is 'confirmed', mirroring the button handlers exactly."
+    - "A regression test exercising this specific path end to end: reopen a confirmed entry via 'edit', trigger a text-based correction (typed grams or add-component), and assert (a) no paid-pipeline call was made and (b) the diary row's totals reflect the correction. This exact scenario existed in neither the automated suite nor `docs/phase-04-manual-checklist.md` — both covered button-based editing (scenario 10) and text-based correction of a FRESH draft (scenarios 3, 5) but never their combination."
   debug_session: ""
 
 ## Observations (not this phase's gap — routed to Phase 3 triage)
