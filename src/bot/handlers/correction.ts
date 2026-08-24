@@ -453,6 +453,7 @@ export async function handleAwaitingText(
   const addComponent = d.addComponent ?? addComponentReal;
   const clearAwaitingInput = d.clearAwaitingInput ?? clearAwaitingInputReal;
   const markDraftStatus = d.markDraftStatus ?? markDraftStatusReal;
+  const recomputeSavedEntry = d.recomputeSavedEntry ?? recomputeSavedEntryReal;
   const now = d.now ?? (() => new Date());
 
   const text = ctx.message?.text ?? '';
@@ -535,6 +536,12 @@ export async function handleAwaitingText(
       await editText(correctionCopy.expired, NO_KEYBOARD);
       return;
     }
+    // CR-02 (gap closure 04-13): a text-based correction of an already-saved
+    // entry must keep the durable `diary` row in sync, mirroring every
+    // button handler's `if (draft.status === 'confirmed')` guard above.
+    if (draft.status === 'confirmed') {
+      await recomputeSavedEntry(d.db, draft.id, user.id);
+    }
     await renderLevel2(result.components, componentIndex);
     return;
   }
@@ -560,6 +567,13 @@ export async function handleAwaitingText(
     console.error(`correction text handler: addComponent failed for draft ${draft.id} (${result.reason})`);
     await editText(correctionCopy.expired, NO_KEYBOARD);
     return;
+  }
+
+  // CR-02 (gap closure 04-13): same recompute guard as the typed_grams
+  // branch above — a successful add-component correction on an
+  // already-saved entry must also keep the diary row's totals in sync.
+  if (draft.status === 'confirmed') {
+    await recomputeSavedEntry(d.db, draft.id, user.id);
   }
 
   const added = result.components[result.components.length - 1];

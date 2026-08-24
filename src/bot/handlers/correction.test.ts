@@ -455,6 +455,62 @@ describe('handleAwaitingText (D-04 text gate, plan 10)', () => {
     expect(last?.text).toContain(correctionCopy.componentTooLong);
   });
 
+  it('typed-grams success on a status: confirmed draft calls recomputeSavedEntry (gap closure 04-13, CR-02)', async () => {
+    const draft = makeDraft({
+      status: 'confirmed',
+      diaryId: 5,
+      awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
+    });
+    const d = makeDeps({ draft });
+    const { ctx } = makeTextCtx('200');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.recomputeSavedEntry).toHaveBeenCalledWith({}, 7, 42);
+  });
+
+  it('add-component success on a status: confirmed draft calls recomputeSavedEntry (gap closure 04-13, CR-02)', async () => {
+    const draft = makeDraft({ status: 'confirmed', diaryId: 5, awaitingInput: { kind: 'add_component' } });
+    const newComponent = { ...makeComponent(), component: 'сметана' };
+    const addComponent = vi.fn(async () => ({
+      ok: true as const,
+      components: [...draft.components, newComponent],
+    }));
+    const d = makeDeps({ draft, addComponent: addComponent as never });
+    const { ctx } = makeTextCtx('сметана');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.recomputeSavedEntry).toHaveBeenCalledWith({}, 7, 42);
+  });
+
+  it('typed-grams success on a status: draft draft (not yet confirmed) never calls recomputeSavedEntry (gap closure 04-13)', async () => {
+    const draft = makeDraft({ status: 'draft', awaitingInput: { kind: 'typed_grams', componentIndex: 0 } });
+    const d = makeDeps({ draft });
+    const { ctx } = makeTextCtx('200');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.recomputeSavedEntry).not.toHaveBeenCalled();
+  });
+
+  it('a rejected typed-grams correction on a status: confirmed draft never calls recomputeSavedEntry (gap closure 04-13)', async () => {
+    const draft = makeDraft({
+      status: 'confirmed',
+      diaryId: 5,
+      awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
+    });
+    const d = makeDeps({
+      draft,
+      applyTypedGrams: vi.fn(async () => ({ ok: false as const, reason: 'invalid_grams' as const })) as never,
+    });
+    const { ctx } = makeTextCtx('много');
+
+    await handleAwaitingText(d.deps, ctx as never, USER, draft);
+
+    expect(d.recomputeSavedEntry).not.toHaveBeenCalled();
+  });
+
   it('an expired draft (TTL crossed between findAwaitingDraft and dispatch): marks abandoned, clears the flag, shows expired copy', async () => {
     const staleCreatedAt = new Date(FIXED_NOW.getTime() - 25 * 3600_000);
     const draft = makeDraft({
