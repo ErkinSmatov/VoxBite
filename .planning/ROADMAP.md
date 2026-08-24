@@ -116,12 +116,13 @@ Plans:
   3. Correction draft state is stored in Postgres (not in process memory) and is unchanged after restarting the bot process mid-correction.
   4. After confirmation, final calories/protein/fat/carbs/sugar are computed purely mathematically (grams × FDC per-100g values, no LLM) and saved to the user's diary for the correct day per their timezone; a missing sugar value displays "нет данных," never 0 or a guessed number.
   5. User can edit or delete an already-saved diary entry using the same correction mechanics used pre-save.
-**Plans**: 12 plans
+**Plans**: 13 plans
 
 Plans:
 - [x] 04-01..04-10 — draft store, calc math, correction ops, card/keyboards, callback dispatcher, bot wiring (complete, merged, green)
 - [x] 04-11-PLAN.md — owner-executable manual checklist (`docs/phase-04-manual-checklist.md`)
 - [x] 04-12-PLAN.md — gap closure: render the level-1 correction card + `crc:` keyboard from the pipeline entry point, add the reachability tripwire, retire `result-card.ts`
+- [ ] 04-13-PLAN.md — gap closure: fix CR-01/CR-02 (typed correction on a reopened saved entry leaked into the paid pipeline and never recomputed the diary row) + real-routing seam regression test
 
 ### Phase 5: Diary views
 **Goal**: Users can see how their day and week compare against their calculated targets.
