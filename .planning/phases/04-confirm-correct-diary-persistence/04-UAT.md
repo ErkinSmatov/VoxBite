@@ -8,7 +8,7 @@ updated: 2026-08-15T12:00:00Z
 
 ## Current Test
 
-[round 3: owner tested text-based correction on an already-confirmed entry, found scenarios 3/5 leak into the paid pipeline — see round 3 below and the new Gaps entries]
+[round 3 gap closed by plan 04-13 (code + tests); live re-test by the owner still pending — see round 4 below]
 
 ## Rounds
 
@@ -102,6 +102,30 @@ pending: 0
 skipped: 1
 blocked: 0
 
+## Round 4 (gap closure 04-13 — code fix landed, live re-test pending)
+
+Plan 04-13 closed both round-3 findings in code: `findAwaitingDraft` now matches `status IN
+('draft', 'confirmed')`, and `handleAwaitingText` calls `recomputeSavedEntry` under the same
+`draft.status === 'confirmed'` guard every button handler already used. The orchestrator
+independently confirmed both fixes by reverting each one individually and watching the
+corresponding new test fail (`draft-store.test.ts`'s confirmed-row test, both
+`correction.test.ts` recompute-guard tests, and the seam-level `meal.test.ts` test asserting zero
+`processMeal` calls) — not merely taking the executor's report on trust. Full suite green
+(687/687), `tsc` clean.
+
+**What remains open:** the exact live scenario — reopen a saved entry via `✎ Поправить`, then
+type a grams correction or add a component by text rather than tapping buttons — has NOT been
+re-tested by the owner against a running bot. The Gaps entry below is marked `resolved` for the
+code/test fix; add the following as an explicit manual check before treating text-based editing
+of saved entries as fully verified:
+- Reopen the meal you already corrected once (or any saved entry) via `✎ Поправить`.
+- Tap `⌨ Ввести граммы` on a component, then type a number as chat text. Confirm it applies to
+  the SAME saved entry and no new "разбираю" acknowledgement / new diary row appears.
+- Tap `➕ Добавить`, then type a new component by text. Confirm it merges into the SAME saved
+  entry (open `db:studio` → `diary`, same row id, updated totals) rather than creating a second
+  diary row.
+
+
 ## Gaps
 
 - truth: "On a real phone, the two-level card is readable and every button does what its label says (CORRECT-01..06, D-01, D-02)."
@@ -155,7 +179,8 @@ blocked: 0
   debug_session: ""
 
 - truth: "A saved entry can be reopened, corrected via typed input (not just buttons), and the diary row's totals stay current (CORRECT-04/06/08)."
-  status: failed
+  status: resolved
+  resolved_by: 04-13
   reason: "User reported (round 3): typing '200 г' after tapping ⌨ Ввести граммы on a reopened saved entry, and typing a component description after tapping ➕ Добавить on a reopened saved entry, both leak into the paid voice/text pipeline instead of being applied as a correction. Confirmed against live data: diary_drafts id=5 (status='confirmed', awaiting_input={\"kind\":\"add_component\"}) and a stray diary row id=3 (\"Говядина 45г\", 91.35 kcal, draft_id=6) that should have been merged into diary id=2."
   severity: blocker
   test: "round-3 (not in the original 12; a scenario the checklist did not cover — text-based correction of an already-reopened saved entry)"
@@ -189,6 +214,29 @@ blocked: 0
     - "handleAwaitingText calling recomputeSavedEntry when the draft's status is 'confirmed', mirroring the button handlers exactly."
     - "A regression test exercising this specific path end to end: reopen a confirmed entry via 'edit', trigger a text-based correction (typed grams or add-component), and assert (a) no paid-pipeline call was made and (b) the diary row's totals reflect the correction. This exact scenario existed in neither the automated suite nor `docs/phase-04-manual-checklist.md` — both covered button-based editing (scenario 10) and text-based correction of a FRESH draft (scenarios 3, 5) but never their combination."
   debug_session: ""
+  resolution: |
+    Plan 04-13 widened `findAwaitingDraft`'s WHERE clause (`src/application/draft-store.ts`) to
+    `and(eq(userId), or(eq(status,'draft'), eq(status,'confirmed')), isNotNull(awaitingInput))`,
+    chosen over flipping status back to 'draft' on edit because `claimConfirm`/`claimAbandon` gate
+    independently on `status = 'draft'` in their own WHERE clauses — the widened filter cannot
+    reopen the double-confirm race the CAS claims exist to prevent. Verified: a stray `✅
+    Подтвердить` tap on a reopened confirmed entry fails the CAS claim and redraws the confirmed
+    card rather than double-writing.
+
+    `handleAwaitingText` (`src/bot/handlers/correction.ts`) now calls `recomputeSavedEntry` in
+    both its typed-grams and add-component success branches when `draft.status === 'confirmed'`,
+    matching the existing button-handler pattern exactly.
+
+    Three regression tests guard the seam, and the orchestrator independently reverted each fix
+    in isolation to confirm the corresponding test fails without it:
+    - `draft-store.test.ts` — a `status='confirmed'` row with `awaiting_input` set is now returned
+      by `findAwaitingDraft`. Verified: narrowing the filter back to `status = 'draft'` fails it.
+    - `correction.test.ts` — `recomputeSavedEntry` is called on both success branches for a
+      confirmed draft. Verified: removing either call site fails its corresponding test.
+    - `meal.test.ts` — a seam-level test wired through the REAL `findAwaitingDraft` and
+      `createCorrectionTextHandler`, through `meal.ts`'s actual gate 0.5, asserts a typed
+      correction on a reopened confirmed draft is applied and `processMeal` is called zero times.
+      Verified: reverting either fix individually fails this test.
 
 ## Observations (not this phase's gap — routed to Phase 3 triage)
 
