@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-08-24T06:51:53.639Z"
-last_activity: 2026-08-14 -- Phase 04 execution started
+stopped_at: Phase 04.1 context gathered
+last_updated: "2026-08-24T07:04:12.396Z"
+last_activity: 2026-08-24 -- Phase 04.1 inserted to replace the in-chat correction UI
 progress:
   total_phases: 6
   completed_phases: 4
@@ -121,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-14T14:25:49.021Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-confirm-correct-diary-persistence/04-CONTEXT.md
+Last session: 2026-08-24T07:04:12.382Z
+Stopped at: Phase 04.1 context gathered
+Resume file: .planning/phases/04.1-telegram-mini-app-correction-ui-replace-the-in-chat-text-but/04.1-CONTEXT.md
