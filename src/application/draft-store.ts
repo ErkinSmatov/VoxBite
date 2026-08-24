@@ -105,17 +105,30 @@ export async function readDraft(db: Db, draftId: number, userId: number): Promis
 }
 
 /**
- * The most recent `status = 'draft'` row for this user that is currently
- * waiting on a free-text reply (`awaiting_input IS NOT NULL`). This is what
- * plan 10's text gate calls to decide whether an incoming plain-text message
- * is correction input or a new (paid) meal message (D-04).
+ * The most recent `status = 'draft'` OR `status = 'confirmed'` row for this
+ * user that is currently waiting on a free-text reply
+ * (`awaiting_input IS NOT NULL`). This is what plan 10's text gate calls to
+ * decide whether an incoming plain-text message is correction input or a new
+ * (paid) meal message (D-04). Widened in gap-closure plan 04-13 (CR-01,
+ * 04-REVIEW.md) to also match `'confirmed'` rows: reopening an already-saved
+ * diary entry via `✎ Поправить` (`case 'edit'`) leaves `status` at
+ * `'confirmed'` (see this plan's `<objective>` for why the fix widens this
+ * filter instead of flipping `status` back to `'draft'`) -- a typed reply
+ * after that reopen must still be recognised as a correction, not fall
+ * through to the paid decomposition pipeline as a new meal (CORRECT-08). An
+ * `'abandoned'` row is deliberately excluded even if a stale `awaiting_input`
+ * is still set on it.
  */
 export async function findAwaitingDraft(db: Db, userId: number): Promise<PersistedDraft | null> {
   const rows = await db
     .select(draftColumns)
     .from(diaryDrafts)
     .where(
-      and(eq(diaryDrafts.userId, userId), eq(diaryDrafts.status, 'draft'), isNotNull(diaryDrafts.awaitingInput)),
+      and(
+        eq(diaryDrafts.userId, userId),
+        or(eq(diaryDrafts.status, 'draft'), eq(diaryDrafts.status, 'confirmed')),
+        isNotNull(diaryDrafts.awaitingInput),
+      ),
     )
     .orderBy(desc(diaryDrafts.updatedAt))
     .limit(1);
