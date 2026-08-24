@@ -124,6 +124,19 @@ Plans:
 - [x] 04-12-PLAN.md — gap closure: render the level-1 correction card + `crc:` keyboard from the pipeline entry point, add the reachability tripwire, retire `result-card.ts`
 - [x] 04-13-PLAN.md — gap closure: fix CR-01/CR-02 (typed correction on a reopened saved entry leaked into the paid pipeline and never recomputed the diary row) + real-routing seam regression test
 
+### Phase 04.1: Telegram Mini App correction UI (INSERTED)
+
+**Goal:** Replace the in-chat text/button correction flow with a Telegram Mini App (web React,
+launched from the bot's menu button) — the same correct/confirm/diary-write logic Phase 4 built
+(draft-store, corrections, confirm-meal) is reused unchanged; only the presentation layer moves
+from chat cards + inline keyboards + a fragile text-input gate to a proper touch UI.
+**Requirements**: TBD (surfaced during discuss-phase — likely a new MINIAPP-* group)
+**Depends on:** Phase 4
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 04.1 to break down)
+
 ### Phase 5: Diary views
 **Goal**: Users can see how their day and week compare against their calculated targets.
 **Depends on**: Phase 4

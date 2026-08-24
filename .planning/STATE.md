@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 4 context gathered
-last_updated: "2026-08-14T19:11:01.484Z"
+last_updated: "2026-08-24T06:51:53.639Z"
 last_activity: 2026-08-14 -- Phase 04 execution started
 progress:
-  total_phases: 5
-  completed_phases: 3
-  total_plans: 34
-  completed_plans: 23
-  percent: 68
+  total_phases: 6
+  completed_phases: 4
+  total_plans: 36
+  completed_plans: 36
+  percent: 67
 ---
 
 # Project State
@@ -22,14 +22,14 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 
 **Core value:** Точность распознавания блюда и подсчёта КБЖУ должна работать
 надёжно, даже если оплата, лимиты и напоминания на старте отсутствуют.
-**Current focus:** Phase 04 — confirm-correct-diary-persistence
+**Current focus:** Phase 04.1 — Telegram Mini App correction UI
 
 ## Current Position
 
-Phase: 04 (confirm-correct-diary-persistence) — EXECUTING
-Plan: 1 of 11
-Status: Executing Phase 04
-Last activity: 2026-08-14 -- Phase 04 execution started
+Phase: 04 (confirm-correct-diary-persistence) — COMPLETE (13/13 plans, 2 gap-closure rounds; text-based correction of a reopened saved entry re-tested live pending, see 04-UAT.md)
+Phase: 04.1 (Telegram Mini App correction UI) — INSERTED, not yet planned
+Next: /gsd-plan-phase 04.1
+Last activity: 2026-08-24 -- Phase 04.1 inserted to replace the in-chat correction UI
 
 Progress: [██████████] 100%
 
@@ -66,6 +66,10 @@ Progress: [██████████] 100%
 | Phase 02 P07 | same-day | 3 tasks | 6 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 04.1 inserted after Phase 4: Replaces Phase 4's in-chat correction UI with a Telegram Mini App after the owner hit repeated real bugs in the text-input gate (D-04) — moving correction to a touch UI removes the whole class of chat-text-routing defects (see 04-UAT.md rounds 3-4). (URGENT)
 
 ### Decisions
 
