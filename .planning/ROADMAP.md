@@ -126,16 +126,45 @@ Plans:
 
 ### Phase 04.1: Telegram Mini App correction UI (INSERTED)
 
-**Goal:** Replace the in-chat text/button correction flow with a Telegram Mini App (web React,
-launched from the bot's menu button) — the same correct/confirm/diary-write logic Phase 4 built
+**Goal:** Replace the in-chat text/button correction flow with a Telegram Mini App (React SPA on
+Vercel, launched from a per-message `web_app` button carrying that draft's id — NOT a global menu
+button, per CONTEXT.md D-02) — the same correct/confirm/diary-write logic Phase 4 built
 (draft-store, corrections, confirm-meal) is reused unchanged; only the presentation layer moves
 from chat cards + inline keyboards + a fragile text-input gate to a proper touch UI.
-**Requirements**: TBD (surfaced during discuss-phase — likely a new MINIAPP-* group)
+**Requirements**: CORRECT-01, CORRECT-02, CORRECT-03, CORRECT-04, CORRECT-05, CORRECT-06, CORRECT-07, CORRECT-08, CALC-01, CALC-02, DIARY-01 (same IDs as Phase 4 — re-discharged through a new UI, no new IDs created)
 **Depends on:** Phase 4
-**Plans:** 0 plans
+**Plans:** 14 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 04.1 to break down)
+**Wave 1**
+- [ ] 04.1-01-PLAN.md — Mini App toolchain: vetted deps, api/ wired into test+typecheck, Vite/Vercel scaffold
+- [ ] 04.1-02-PLAN.md — Bot-side `web_app` Open button, MINI_APP_BASE_URL, rewritten reachability tripwire
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 04.1-03-PLAN.md — API shared lib: initData HMAC auth boundary, user resolve, status mapping, response envelope
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 04.1-04-PLAN.md — GET draft + confirm endpoints
+- [ ] 04.1-05-PLAN.md — swap-candidate / adjust-grams / typed-grams endpoints (+ recompute guard)
+- [ ] 04.1-06-PLAN.md — remove-component / add-component endpoints (+ per-container matching deps)
+- [ ] 04.1-08-PLAN.md — Mini App shell: Telegram bridge, API client, copy, theme CSS, screen states
+
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 04.1-07-PLAN.md — recompute / delete / cancel endpoints + cross-endpoint recompute-guard tripwire
+- [ ] 04.1-09-PLAN.md — Mini App component rows: candidate picker, grams control, remove
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 04.1-10-PLAN.md — Mini App totals, add-component, empty state, confirm/save/delete footer
+- [ ] 04.1-11-PLAN.md — Delete the chat correction UI and the awaiting_input call sites
+
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 04.1-12-PLAN.md — [BLOCKING] drop the awaiting_input column via generate + owner-reviewed migrate
+
+**Wave 7** *(blocked on Wave 6)*
+- [ ] 04.1-13-PLAN.md — Deploy to Vercel, register the domain with BotFather, live auth smoke tests
+
+**Wave 8** *(blocked on Wave 7)*
+- [ ] 04.1-14-PLAN.md — Owner-executable manual checklist + end-to-end walkthrough in real Telegram
 
 ### Phase 5: Diary views
 **Goal**: Users can see how their day and week compare against their calculated targets.
@@ -158,4 +187,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 13/13 | Complete   | 2026-08-24 |
+| 04.1. Telegram Mini App correction UI | 0/14 | Not started | - |
 | 5. Diary views | 0/TBD | Not started | - |
