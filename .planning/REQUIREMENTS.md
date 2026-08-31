@@ -67,17 +67,17 @@ Requirements for initial closed-beta release (владелец + друзья, �
 - [ ] **CORRECT-05**: Пользователь может убрать компонент из разбора
 - [ ] **CORRECT-06**: Пользователь может добавить недостающий компонент
       текстом — для него запускается тот же поиск по FDC
-- [ ] **CORRECT-07**: Состояние черновика коррекции хранится в базе данных
+- [x] **CORRECT-07**: Состояние черновика коррекции хранится в базе данных
       (не в памяти процесса) и переживает перезапуск бота
 - [ ] **CORRECT-08**: Пользователь может отредактировать или удалить уже
       сохранённую запись дневника той же механикой коррекции
 
 ### Calculation
 
-- [ ] **CALC-01**: Итоговые калории/белки/жиры/углеводы/сахар для
+- [x] **CALC-01**: Итоговые калории/белки/жиры/углеводы/сахар для
       подтверждённой записи считаются математически (граммы × нутриенты
       FDC на 100 г), не через LLM
-- [ ] **CALC-02**: Если в сопоставленной FDC-записи нет данных по сахару
+- [x] **CALC-02**: Если в сопоставленной FDC-записи нет данных по сахару
       (или другому нутриенту) — бот показывает "нет данных", а не 0 и не
       выдуманное значение
 
@@ -162,10 +162,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORRECT-04 | Phase 4 | Pending |
 | CORRECT-05 | Phase 4 | Pending |
 | CORRECT-06 | Phase 4 | Pending |
-| CORRECT-07 | Phase 4 | Pending |
+| CORRECT-07 | Phase 4 | Complete |
 | CORRECT-08 | Phase 4 | Pending |
-| CALC-01 | Phase 4 | Pending |
-| CALC-02 | Phase 4 | Pending |
+| CALC-01 | Phase 4 | Complete |
+| CALC-02 | Phase 4 | Complete |
 | DIARY-01 | Phase 4 | Pending |
 | DIARY-02 | Phase 5 | Pending |
 | DIARY-03 | Phase 5 | Pending |
