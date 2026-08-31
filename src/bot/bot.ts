@@ -55,6 +55,8 @@ export interface BotDeps {
   allowlist: Set<number>;
   /** Resolved from env by src/bot/index.ts — this file still never calls loadEnv(). */
   sttModel: string;
+  /** Resolved from env by src/bot/index.ts — this file still never calls loadEnv(). */
+  miniAppBaseUrl: string;
 }
 
 export function createBot(deps: BotDeps): Bot<BotContext> {
@@ -131,6 +133,7 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
     token: deps.token,
     api: bot.api,
     sttModel: deps.sttModel,
+    miniAppBaseUrl: deps.miniAppBaseUrl,
   });
 
   // Phase 4: the correction handlers (crc: callback dispatch, plan 09) and

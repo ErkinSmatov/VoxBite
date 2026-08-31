@@ -8,20 +8,27 @@
  *
  * This is a REACHABILITY tripwire, not a registration-order one: it asserts
  * the product's only entry point (`processMeal`, voice AND text) actually
- * emits a button the `crc:` dispatcher can receive. It must never be
- * weakened into a registration test.
+ * emits a Telegram `web_app` button addressed at the persisted draft — the
+ * button that opens the phase 04.1 Mini App. It must never be weakened into
+ * a registration test.
+ *
+ * 04.1-02: this test used to assert a `crc:` callback keyboard (the Phase 4
+ * chat-native correction card). That flow is retired (D-02/D-03) — the ack
+ * message is never rewritten into a card again. This rewrite asserts the
+ * NEW reachable surface instead: a `web_app` button carrying `draftId=<id>`,
+ * and — per D-03 — that the message text itself carries none of the
+ * component/candidate/nutrient data the old card used to show.
  *
  * The renderer under test is sourced from the composition root
  * (`buildMealHandlerDeps` in `src/bot/pipeline-wiring.ts`), NOT from a direct
- * `createDraftCardRenderer()` import — a direct import would only prove "IF
- * you wire the real renderer, buttons appear"; sourcing it from the wiring
- * means "someone swapped the renderer out in `pipeline-wiring.ts`" fails this
- * tripwire too.
+ * `createMiniAppButtonRenderer()` import — a direct import would only prove
+ * "IF you wire the real renderer, the button appears"; sourcing it from the
+ * wiring means "someone swapped the renderer out in `pipeline-wiring.ts`"
+ * fails this tripwire too.
  */
 import { describe, expect, it } from 'vitest';
 import { processMeal } from '../application/voice-pipeline.js';
 import { buildMealHandlerDeps } from './pipeline-wiring.js';
-import { parseCrc } from './keyboards/correction-keyboards.js';
 import { pipelineCopy } from './formatting/pipeline-copy.js';
 import type { DecompositionResult } from '../adapters/llm/types.js';
 import type { Transcriber, TranscriptionResult } from '../adapters/stt/types.js';
@@ -133,10 +140,12 @@ function baseArgs(overrides: Partial<ProcessMealArgs> = {}): ProcessMealArgs {
   };
 }
 
+const MINI_APP_BASE_URL = 'https://example.vercel.app';
+
 /**
- * Builds a real PipelineDeps whose `cardRenderer` comes from the composition
- * root (`buildMealHandlerDeps`) and whose other collaborators are the
- * recording fakes this test needs.
+ * Builds a real PipelineDeps whose `openRenderer` comes from the
+ * composition root (`buildMealHandlerDeps`) and whose other collaborators
+ * are the recording fakes this test needs.
  */
 function buildDeps(opts: {
   draftId: number;
@@ -151,6 +160,7 @@ function buildDeps(opts: {
     token: 'test-token',
     api: { editMessageText: async () => undefined },
     sttModel: '',
+    miniAppBaseUrl: MINI_APP_BASE_URL,
     factories: {
       createTranscriber: (() => fakeTranscriber({ text: 'unused', model: 'x', usage: {} })) as never,
       createDecomposer: (() => fakeDecomposer(opts.decomposition)) as never,
@@ -161,61 +171,76 @@ function buildDeps(opts: {
   });
 
   // Override the remaining PipelineDeps fields with the recording fakes this
-  // test needs -- but cardRenderer is left exactly as buildMealHandlerDeps
+  // test needs -- but openRenderer is left exactly as buildMealHandlerDeps
   // produced it, since that is the seam this tripwire exists to cross.
   const deps = { ...wired.deps };
 
   return { deps, editor };
 }
 
-describe('entry-point reachability (04-12)', () => {
-  it('voice/text success: exactly one editMessage call carries a defined 4th argument whose inline_keyboard buttons all parse via parseCrc to the persisted draft id, including a confirm action', async () => {
+interface InlineKeyboardLike {
+  inline_keyboard: { text: string; web_app?: { url: string }; callback_data?: string }[][];
+}
+
+describe('entry-point reachability (04.1-02)', () => {
+  it('voice success: exactly one editMessage call carries a non-undefined inline keyboard with exactly one web_app button whose url contains draftId=<the persisted draft id>, and text with none of the fixture component/candidate/nutrient data', async () => {
     const { deps, editor } = buildDeps({
       draftId: 55,
       decomposition: decompositionResult([
         { component: 'банан', component_en: 'banana, raw', grams: 120 },
       ]),
+      candidates: [candidate({ description: 'Banana, raw' })],
     });
 
     await processMeal(deps, baseArgs({ input: { kind: 'voice', audio: Buffer.from('x'), durationSeconds: 2 } }));
 
     expect(editor.calls).toHaveLength(1);
-    const replyMarkup = editor.calls[0]?.replyMarkup as { inline_keyboard: { text: string; callback_data: string }[][] } | undefined;
+    const call = editor.calls[0];
+    expect(call).toBeDefined();
+
+    const replyMarkup = call?.replyMarkup as InlineKeyboardLike | undefined;
     expect(replyMarkup).toBeDefined();
     const buttons = replyMarkup!.inline_keyboard.flat();
-    expect(buttons.length).toBeGreaterThan(0);
+    expect(buttons).toHaveLength(1);
 
-    const parsed = buttons.map((b) => parseCrc(b.callback_data));
-    for (const p of parsed) {
-      expect(p).not.toBeNull();
-      expect(p?.draftId).toBe(55);
-    }
+    const button = buttons[0]!;
+    expect(button.web_app).toBeDefined();
+    expect(button.callback_data).toBeUndefined();
+    expect(button.web_app?.url).toContain('draftId=55');
 
-    // Assert #2: a confirm action must exist -- without it no diary row can
-    // ever be written (checklist scenario 9).
-    expect(parsed.some((p) => p?.action === 'confirm')).toBe(true);
+    // D-03: the message text must carry none of the fixture's component
+    // name, candidate description, or numeric gram/kcal values.
+    const text = call?.text ?? '';
+    expect(text).not.toContain('банан');
+    expect(text).not.toContain('Banana, raw');
+    expect(text).not.toContain('120');
+    expect(text).not.toMatch(/kcal|ккал/i);
   });
 
-  it('text entry point delivers the identical crc: keyboard -- not a second, untested path', async () => {
+  it('text entry point delivers the identical web_app button -- not a second, untested path', async () => {
     const { deps, editor } = buildDeps({
       draftId: 56,
       decomposition: decompositionResult([
         { component: 'рис', component_en: 'rice, white, cooked', grams: 150 },
       ]),
+      candidates: [candidate({ description: 'Rice, white, cooked' })],
     });
 
     await processMeal(deps, baseArgs({ input: { kind: 'text', text: 'рис 150 грамм' } }));
 
     expect(editor.calls).toHaveLength(1);
-    const replyMarkup = editor.calls[0]?.replyMarkup as { inline_keyboard: { text: string; callback_data: string }[][] } | undefined;
+    const call = editor.calls[0];
+    const replyMarkup = call?.replyMarkup as InlineKeyboardLike | undefined;
     expect(replyMarkup).toBeDefined();
     const buttons = replyMarkup!.inline_keyboard.flat();
-    const parsed = buttons.map((b) => parseCrc(b.callback_data));
-    for (const p of parsed) {
-      expect(p).not.toBeNull();
-      expect(p?.draftId).toBe(56);
-    }
-    expect(parsed.some((p) => p?.action === 'confirm')).toBe(true);
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]?.web_app).toBeDefined();
+    expect(buttons[0]?.web_app?.url).toContain('draftId=56');
+
+    const text = call?.text ?? '';
+    expect(text).not.toContain('рис');
+    expect(text).not.toContain('Rice, white, cooked');
+    expect(text).not.toContain('150');
   });
 
   it('negative control: the D-08 (Phase 3) empty-decomposition path delivers pipelineCopy.noFood with NO reply markup', async () => {
