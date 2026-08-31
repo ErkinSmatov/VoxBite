@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run miniapp:build",
+  "outputDirectory": "mini-app/dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
