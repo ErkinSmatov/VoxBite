@@ -44,7 +44,13 @@ async function main(): Promise<void> {
     );
   }
 
-  const bot = createBot({ db, token: env.TELEGRAM_BOT_TOKEN, allowlist, sttModel: env.STT_MODEL });
+  const bot = createBot({
+    db,
+    token: env.TELEGRAM_BOT_TOKEN,
+    allowlist,
+    sttModel: env.STT_MODEL,
+    miniAppBaseUrl: env.MINI_APP_BASE_URL,
+  });
 
   // D-11: run the interrupted-run sweep BEFORE bot.start() so any apology
   // reaches the affected user before any newly-polled update is handled,

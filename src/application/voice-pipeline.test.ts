@@ -6,8 +6,7 @@ import type { Transcriber, TranscriptionResult } from '../adapters/stt/types.js'
 import type { Embedder } from '../adapters/embeddings/types.js';
 import type { FdcCandidate, FdcRepository } from '../domain/fdc-matching/index.js';
 import { pipelineCopy } from '../bot/formatting/pipeline-copy.js';
-import { correctionCopy } from '../bot/formatting/correction-copy.js';
-import type { DraftCardRenderer, DraftComponent } from './types.js';
+import type { OpenCorrectionRenderer } from './types.js';
 
 function makeEmbedding(fill = 0.1): number[] {
   return new Array(1536).fill(fill);
@@ -92,24 +91,24 @@ function fakeEditor() {
 }
 
 /**
- * Fake DraftCardRenderer -- records every renderLevel1 call (components +
- * draftId) and returns a card carrying the real Phase 4 header
- * (`correctionCopy.headerLevel1`) plus a marker object as replyMarkup, so
- * tests can assert the 4th `editMessage` argument was DEFINED without
- * depending on the real bot-layer renderer (that cross-seam proof belongs to
- * `entry-point-reachability.test.ts`, not here).
+ * Fake OpenCorrectionRenderer -- records every renderOpenButton call
+ * (draftId only, per D-03: the port structurally cannot receive component
+ * data) and returns a card carrying `pipelineCopy.analysisReady` plus a
+ * marker object as replyMarkup, so tests can assert the 4th `editMessage`
+ * argument was DEFINED without depending on the real bot-layer renderer
+ * (that cross-seam proof belongs to `entry-point-reachability.test.ts`, not
+ * here).
  */
-function fakeCardRenderer(): DraftCardRenderer & {
-  calls: { components: DraftComponent[]; draftId: number }[];
+function fakeOpenRenderer(): OpenCorrectionRenderer & {
+  calls: { draftId: number }[];
 } {
-  const calls: { components: DraftComponent[]; draftId: number }[] = [];
+  const calls: { draftId: number }[] = [];
   return {
     calls,
-    renderLevel1(components, draftId) {
-      calls.push({ components, draftId });
-      const names = components.map((c) => c.component).join(', ');
+    renderOpenButton(draftId) {
+      calls.push({ draftId });
       return {
-        text: `${correctionCopy.headerLevel1}\n[fake card for draft ${draftId}: ${names}]`,
+        text: `${pipelineCopy.analysisReady}\n[fake card for draft ${draftId}]`,
         replyMarkup: { fakeKeyboardForDraft: draftId },
       };
     },
@@ -184,10 +183,10 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
-    const deps: PipelineDeps = { db: db as never, transcriber, decomposer, embedder, repo, editor, cardRenderer };
+    const deps: PipelineDeps = { db: db as never, transcriber, decomposer, embedder, repo, editor, openRenderer };
     const args = baseArgs({ input: { kind: 'voice', audio, durationSeconds: 3.2 } });
 
     await processMeal(deps, args);
@@ -203,10 +202,10 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
-    const deps: PipelineDeps = { db: db as never, transcriber, decomposer, embedder, repo, editor, cardRenderer };
+    const deps: PipelineDeps = { db: db as never, transcriber, decomposer, embedder, repo, editor, openRenderer };
     const args = baseArgs({ input: { kind: 'text', text: 'омлет из двух яиц' } });
 
     await processMeal(deps, args);
@@ -225,7 +224,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -235,7 +234,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
@@ -252,7 +251,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -262,7 +261,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
@@ -288,7 +287,7 @@ describe('processMeal', () => {
       },
     };
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -298,7 +297,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
@@ -318,7 +317,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
@@ -329,7 +328,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
     const args = baseArgs();
 
@@ -338,7 +337,7 @@ describe('processMeal', () => {
     expect(db.inserted).toHaveLength(1);
     expect(editor.calls).toHaveLength(1);
     expect(editor.calls[0]?.messageId).toBe(args.ackMessageId);
-    expect(editor.calls[0]?.text).toContain(correctionCopy.headerLevel1);
+    expect(editor.calls[0]?.text).toContain(pipelineCopy.analysisReady);
     expect(editor.calls[0]?.replyMarkup).toBeDefined();
     expect(db.statusUpdates).toEqual(['done']);
     expect(logSpy).toHaveBeenCalledTimes(1);
@@ -346,14 +345,14 @@ describe('processMeal', () => {
     logSpy.mockRestore();
   });
 
-  it('success path: cardRenderer.renderLevel1 is called exactly once, with the persisted DraftComponent[] and the draft id saveDraft returned', async () => {
+  it('success path: openRenderer.renderOpenButton is called exactly once, with the draft id saveDraft returned', async () => {
     const decomposer = fakeDecomposer(
       decompositionResult([{ component: 'банан', component_en: 'banana, raw', grams: 120 }]),
     );
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -363,27 +362,25 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
 
-    expect(cardRenderer.calls).toHaveLength(1);
-    const inserted = db.inserted[0] as { components: unknown };
-    expect(cardRenderer.calls[0]?.components).toEqual(inserted.components);
+    expect(openRenderer.calls).toHaveLength(1);
     // fakeDb's saveDraft always returns { id: 1 } -- exercised again below with
     // a different id so a hardcoded 0/1 in the pipeline could not pass by accident.
-    expect(cardRenderer.calls[0]?.draftId).toBe(1);
+    expect(openRenderer.calls[0]?.draftId).toBe(1);
   });
 
-  it('success path: a draft id other than 1 propagates into renderLevel1 (a hardcoded 0/1 would not)', async () => {
+  it('success path: a draft id other than 1 propagates into renderOpenButton (a hardcoded 0/1 would not)', async () => {
     const decomposer = fakeDecomposer(
       decompositionResult([{ component: 'банан', component_en: 'banana, raw', grams: 120 }]),
     );
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = {
       inserted: [] as unknown[],
       statusUpdates: [] as string[],
@@ -412,13 +409,13 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
 
-    expect(cardRenderer.calls).toHaveLength(1);
-    expect(cardRenderer.calls[0]?.draftId).toBe(4321);
+    expect(openRenderer.calls).toHaveLength(1);
+    expect(openRenderer.calls[0]?.draftId).toBe(4321);
     expect(editor.calls[0]?.replyMarkup).toEqual({ fakeKeyboardForDraft: 4321 });
   });
 
@@ -429,7 +426,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -439,7 +436,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     const receivedAt = new Date('2026-03-14T15:30:00Z');
@@ -457,7 +454,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -467,7 +464,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     // Asia/Almaty is UTC+5. 2026-03-15 00:10 local time is 2026-03-14T19:10Z
@@ -491,7 +488,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -502,7 +499,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await expect(
@@ -523,7 +520,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -533,7 +530,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
@@ -541,7 +538,7 @@ describe('processMeal', () => {
     expect(editor.calls).toHaveLength(1);
     expect(editor.calls[0]?.text).toBe(pipelineCopy.noFood);
     expect(editor.calls[0]?.replyMarkup).toBeUndefined();
-    expect(cardRenderer.calls).toHaveLength(0);
+    expect(openRenderer.calls).toHaveLength(0);
     expect(db.inserted).toHaveLength(0);
     expect(db.statusUpdates).toEqual(['done']);
     expect(decomposer.calls).toHaveLength(1);
@@ -554,10 +551,10 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
-    const deps: PipelineDeps = { db: db as never, transcriber, decomposer, embedder, repo, editor, cardRenderer };
+    const deps: PipelineDeps = { db: db as never, transcriber, decomposer, embedder, repo, editor, openRenderer };
     const args = baseArgs({ input: { kind: 'voice', audio: Buffer.from('x'), durationSeconds: 2 } });
 
     await expect(processMeal(deps, args)).resolves.toBeUndefined();
@@ -574,7 +571,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -584,7 +581,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await expect(processMeal(deps, baseArgs())).resolves.toBeUndefined();
@@ -601,7 +598,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -611,7 +608,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await expect(processMeal(deps, baseArgs())).resolves.toBeUndefined();
@@ -632,7 +629,7 @@ describe('processMeal', () => {
     };
     const repo = fakeRepo([]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -642,7 +639,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await expect(processMeal(deps, baseArgs())).resolves.toBeUndefined();
@@ -658,7 +655,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = {
       insert() {
         return {
@@ -689,7 +686,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await expect(processMeal(deps, baseArgs())).resolves.toBeUndefined();
@@ -707,7 +704,7 @@ describe('processMeal', () => {
       embedder: fakeEmbedder(),
       repo: fakeRepo([]),
       editor: fakeEditor(),
-      cardRenderer: fakeCardRenderer(),
+      openRenderer: fakeOpenRenderer(),
     };
 
     await expect(processMeal(deps, baseArgs())).resolves.not.toThrow();
@@ -720,7 +717,7 @@ describe('processMeal', () => {
     const embedder = fakeEmbedder();
     const repo = fakeRepo([candidate()]);
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
 
     const deps: PipelineDeps = {
@@ -730,7 +727,7 @@ describe('processMeal', () => {
       embedder,
       repo,
       editor,
-      cardRenderer,
+      openRenderer,
     };
     const args = baseArgs({ ackMessageId: 999 });
 
@@ -759,7 +756,7 @@ describe('processMeal failure accounting', () => {
     const transcriber = fakeTranscriber(new Error('stt exploded'));
     const decomposer = fakeDecomposer(decompositionResult([]));
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const db = fakeDb();
     const deps: PipelineDeps = {
       db: db as never,
@@ -768,7 +765,7 @@ describe('processMeal failure accounting', () => {
       embedder: fakeEmbedder(),
       repo: fakeRepo([]),
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs({ input: { kind: 'voice', audio: Buffer.from('x'), durationSeconds: 4 } }));
@@ -789,7 +786,7 @@ describe('processMeal failure accounting', () => {
 
     const decomposer = fakeDecomposer(new DecompositionFailedError());
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     const deps: PipelineDeps = {
       db: fakeDb() as never,
       transcriber: fakeTranscriber({ text: 'что-то', model: 'gpt-4o-mini-transcribe', usage: {} }),
@@ -797,7 +794,7 @@ describe('processMeal failure accounting', () => {
       embedder: fakeEmbedder(),
       repo: fakeRepo([]),
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs({ input: { kind: 'voice', audio: Buffer.from('x'), durationSeconds: 6 } }));
@@ -815,7 +812,7 @@ describe('processMeal failure accounting', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     const editor = fakeEditor();
-    const cardRenderer = fakeCardRenderer();
+    const openRenderer = fakeOpenRenderer();
     // markUpdateStatus('done') is the step after the card is delivered.
     // Make the db's update chain throw to simulate a hiccup at that point.
     const db = fakeDb();
@@ -835,15 +832,15 @@ describe('processMeal failure accounting', () => {
       embedder: fakeEmbedder(),
       repo: fakeRepo([candidate()]),
       editor,
-      cardRenderer,
+      openRenderer,
     };
 
     await processMeal(deps, baseArgs());
 
-    // The last thing the user saw must be the result card, not an error.
+    // The last thing the user saw must be the open-button card, not an error.
     const last = editor.calls.at(-1)?.text ?? '';
     expect(last).not.toBe(pipelineCopy.internalError);
-    expect(last).toContain('банан');
+    expect(last).toContain(pipelineCopy.analysisReady);
 
     vi.restoreAllMocks();
   });

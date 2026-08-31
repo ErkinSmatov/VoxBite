@@ -20,7 +20,7 @@ import type { Db } from '../db/client.js';
 import type { PipelineDeps } from '../application/voice-pipeline.js';
 import type { MealHandlerDeps } from './handlers/meal.js';
 import { createMessageEditor, type EditableApi } from './telegram/message-editor.js';
-import { createDraftCardRenderer } from './telegram/draft-card-renderer.js';
+import { createMiniAppButtonRenderer } from './telegram/mini-app-button-renderer.js';
 
 /**
  * Resolves the raw `.env` override (already trimmed of surrounding
@@ -59,6 +59,8 @@ export interface MealWiringDeps {
   token: string;
   api: EditableApi;
   sttModel: string;
+  /** Public base URL of the deployed Mini App — resolved from env by src/bot/index.ts, this file still never calls loadEnv(). */
+  miniAppBaseUrl: string;
   /** Injectable for tests — defaults to the real factories, never called with a network-capable client in a test. */
   factories?: Partial<MealWiringFactories>;
 }
@@ -82,9 +84,9 @@ export function buildMealHandlerDeps(w: MealWiringDeps): MealHandlerDeps {
   const embedder = createEmbedder();
   const repo = createRepository(w.db);
   const editor = createEditor(w.api);
-  const cardRenderer = createDraftCardRenderer();
+  const openRenderer = createMiniAppButtonRenderer(w.miniAppBaseUrl);
 
-  const deps: PipelineDeps = { db: w.db, transcriber, decomposer, embedder, repo, editor, cardRenderer };
+  const deps: PipelineDeps = { db: w.db, transcriber, decomposer, embedder, repo, editor, openRenderer };
 
   return { db: w.db, token: w.token, deps };
 }

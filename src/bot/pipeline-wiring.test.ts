@@ -55,6 +55,7 @@ describe('buildMealHandlerDeps', () => {
       token: 'test-token',
       api: fakeApi,
       sttModel: '',
+      miniAppBaseUrl: 'https://example.vercel.app',
       factories: {
         createTranscriber: createTranscriber as never,
         createDecomposer: createDecomposer as never,
@@ -72,7 +73,7 @@ describe('buildMealHandlerDeps', () => {
     expect(result.deps.embedder).toBeDefined();
     expect(result.deps.repo).toBeDefined();
     expect(result.deps.editor).toBeDefined();
-    expect(result.deps.cardRenderer).toBeDefined();
+    expect(result.deps.openRenderer).toBeDefined();
 
     expect(createTranscriber).toHaveBeenCalledTimes(1);
     expect(createDecomposer).toHaveBeenCalledTimes(1);
@@ -91,6 +92,7 @@ describe('buildMealHandlerDeps', () => {
       token: 'test-token',
       api: fakeApi,
       sttModel: STT_COMPARISON_MODEL,
+      miniAppBaseUrl: 'https://example.vercel.app',
       factories: {
         createTranscriber: createTranscriber as never,
         createDecomposer: (() => ({ decompose: vi.fn() })) as never,
@@ -116,6 +118,7 @@ describe('buildMealHandlerDeps', () => {
           token: 'test-token',
           api: { editMessageText: vi.fn() },
           sttModel: '',
+      miniAppBaseUrl: 'https://example.vercel.app',
           factories: {
             createTranscriber: (() => ({ transcribe: vi.fn() })) as never,
             createDecomposer: (() => ({ decompose: vi.fn() })) as never,

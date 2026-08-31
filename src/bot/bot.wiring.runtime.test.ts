@@ -76,6 +76,7 @@ function build(): void {
     token: '123456:fake-token-for-tests',
     allowlist: new Set([1]),
     sttModel: 'gpt-4o-mini-transcribe',
+    miniAppBaseUrl: 'https://example.vercel.app',
   });
 }
 
