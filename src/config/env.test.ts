@@ -18,6 +18,7 @@ function clearRequiredEnv() {
   delete process.env.DATABASE_URL;
   delete process.env.OPENAI_API_KEY;
   delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.MINI_APP_BASE_URL;
   delete process.env.BETA_ALLOWLIST;
   delete process.env.STT_MODEL;
 }
@@ -40,7 +41,12 @@ describe('env.ts', () => {
 
   it('REQUIRED_ENV_KEYS and OPTIONAL_ENV_KEYS together match exactly the keys declared in .env.example', async () => {
     const { REQUIRED_ENV_KEYS, OPTIONAL_ENV_KEYS } = await import('./env');
-    expect(REQUIRED_ENV_KEYS).toEqual(['DATABASE_URL', 'OPENAI_API_KEY', 'TELEGRAM_BOT_TOKEN']);
+    expect(REQUIRED_ENV_KEYS).toEqual([
+      'DATABASE_URL',
+      'OPENAI_API_KEY',
+      'TELEGRAM_BOT_TOKEN',
+      'MINI_APP_BASE_URL',
+    ]);
     expect(OPTIONAL_ENV_KEYS).toEqual(['BETA_ALLOWLIST', 'STT_MODEL']);
 
     const examplePath = path.resolve(import.meta.dirname, '../../.env.example');
@@ -53,6 +59,7 @@ describe('env.ts', () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     const first = loadEnv();
@@ -64,6 +71,7 @@ describe('env.ts', () => {
     clearRequiredEnv();
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     expect(() => loadEnv()).toThrowError(/DATABASE_URL/);
@@ -75,6 +83,7 @@ describe('env.ts', () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     const result = loadEnv();
@@ -88,9 +97,20 @@ describe('env.ts', () => {
     clearRequiredEnv();
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     expect(() => loadEnv()).toThrowError(/TELEGRAM_BOT_TOKEN/);
+  });
+
+  it('loadEnv() throws an error naming MINI_APP_BASE_URL when it is unset', async () => {
+    clearRequiredEnv();
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    const { loadEnv, resetEnvCacheForTests } = await import('./env');
+    resetEnvCacheForTests();
+    expect(() => loadEnv()).toThrowError(/MINI_APP_BASE_URL/);
   });
 
   it('loadEnv() returns BETA_ALLOWLIST as an empty string when the variable is entirely absent', async () => {
@@ -98,6 +118,7 @@ describe('env.ts', () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     const result = loadEnv();
@@ -109,6 +130,7 @@ describe('env.ts', () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     process.env.BETA_ALLOWLIST = '';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
@@ -121,6 +143,7 @@ describe('env.ts', () => {
     process.env.DATABASE_URL = 'postgres://example';
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.TELEGRAM_BOT_TOKEN = '123456789:AAExampleTokenText';
+    process.env.MINI_APP_BASE_URL = 'https://example.vercel.app';
     const { loadEnv, resetEnvCacheForTests } = await import('./env');
     resetEnvCacheForTests();
     const result = loadEnv();

@@ -5,12 +5,22 @@ import dotenvSafe from 'dotenv-safe';
  * sync with the `KEY=` lines declared in `.env.example` — the test suite
  * for this module asserts that equality.
  */
-export const REQUIRED_ENV_KEYS = ['DATABASE_URL', 'OPENAI_API_KEY', 'TELEGRAM_BOT_TOKEN'] as const;
+export const REQUIRED_ENV_KEYS = [
+  'DATABASE_URL',
+  'OPENAI_API_KEY',
+  'TELEGRAM_BOT_TOKEN',
+  'MINI_APP_BASE_URL',
+] as const;
 
 export interface AppEnv {
   DATABASE_URL: string;
   OPENAI_API_KEY: string;
   TELEGRAM_BOT_TOKEN: string;
+  // Public https base URL of the deployed Mini App (Vercel). Required, not
+  // optional: after phase 04.1 there is no chat-based correction UI left, so
+  // a bot running without a working Open button cannot let a user correct
+  // or save anything at all — failing loudly at startup is correct here.
+  MINI_APP_BASE_URL: string;
   BETA_ALLOWLIST: string; // '' is legal and meaningful: nobody is allowed
   /**
    * '' is legal and means "use STT_MODEL from src/adapters/stt/types.ts"
@@ -81,6 +91,7 @@ export function loadEnv(): AppEnv {
     DATABASE_URL: process.env.DATABASE_URL as string,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY as string,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN as string,
+    MINI_APP_BASE_URL: process.env.MINI_APP_BASE_URL as string,
     BETA_ALLOWLIST: process.env.BETA_ALLOWLIST ?? '',
     STT_MODEL: process.env.STT_MODEL ?? '',
   };
