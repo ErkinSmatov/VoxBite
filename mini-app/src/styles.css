@@ -124,3 +124,71 @@ body {
   padding-top: var(--sp-md);
   padding-bottom: calc(var(--sp-md) + env(safe-area-inset-bottom));
 }
+
+/* Component list — plan 09 (CandidatePicker / GramsControl / ComponentRow) */
+
+.component-row-card {
+  background: var(--color-secondary-bg);
+  padding: var(--sp-md);
+  margin-bottom: var(--sp-sm);
+  border-radius: var(--sp-sm);
+}
+
+.component-row-main {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-md);
+}
+
+.component-row-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.component-row-right {
+  flex-shrink: 0;
+}
+
+.component-row-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--sp-sm);
+}
+
+.candidate-picker-affordance {
+  background: none;
+  border: none;
+  color: var(--color-link);
+  padding: 0;
+  text-align: left;
+}
+
+.candidate-picker-panel {
+  background: var(--color-secondary-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.candidate-picker-row {
+  background: none;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-sm);
+  text-align: left;
+  width: 100%;
+}
+
+.grams-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.grams-control input {
+  width: 3.5em;
+  text-align: center;
+  background: var(--color-bg);
+  border: 1px solid var(--color-hint);
+}
