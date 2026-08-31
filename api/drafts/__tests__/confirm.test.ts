@@ -205,7 +205,7 @@ describe('createConfirmHandler', () => {
     await handler(req, res);
 
     expect(deps.confirmMeal).toHaveBeenCalledTimes(1);
-    expect(deps.confirmMeal).toHaveBeenCalledWith(expect.anything(), 5, AUTH_USER.id);
+    expect(deps.confirmMeal).toHaveBeenCalledWith(expect.anything(), 5, AUTH_USER.id, expect.any(Date));
   });
 
   it('confirming twice in sequence calls confirmMeal twice but produces exactly one ok:true and one idempotent 200', async () => {
