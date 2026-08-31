@@ -10,7 +10,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export interface FakeRes extends VercelResponse {
-  statusCode: number | null;
   jsonBody: unknown;
   ended: boolean;
 }
@@ -34,7 +33,7 @@ export function makeReq(
 
 export function makeRes(): FakeRes {
   const res = {
-    statusCode: null,
+    statusCode: 0, // 0 is not a valid HTTP status — sentinel for "not yet set"
     jsonBody: undefined,
     ended: false,
     status(code: number) {

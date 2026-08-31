@@ -84,7 +84,7 @@ describe('requireUser', () => {
     const result = await requireUser(req, res);
 
     expect(result).toEqual({ id: 7, timezone: 'Asia/Almaty' });
-    expect(res.statusCode).toBeNull();
+    expect(res.statusCode).toBe(0); // sentinel for "not yet set" — no response was written
     expect(res.jsonBody).toBeUndefined();
   });
 });
