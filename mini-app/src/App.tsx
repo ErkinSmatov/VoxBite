@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiGet } from './lib/api-client';
 import { getDraftIdFromUrl } from './lib/telegram';
 import { copy } from './copy';
+import { ComponentRow } from './components/ComponentRow';
 import type { DraftResponse } from './types';
 
 type Screen =
@@ -23,6 +24,10 @@ function isGoneStatus(status: number): boolean {
 export function App() {
   const [screen, setScreen] = useState<Screen>({ phase: 'loading' });
   const [draftId] = useState<number | null>(() => getDraftIdFromUrl());
+  // A single mutation failure shows an inline banner, not a full-screen
+  // state — the rest of the screen (and the user's in-progress edits) stays
+  // visible.
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const load = useCallback(async (id: number) => {
     setScreen({ phase: 'loading' });
@@ -55,9 +60,13 @@ export function App() {
    * (04.1-RESEARCH.md Anti-Patterns / Pitfall 3, CALC-01) — the API's
    * `calculateTotal()` is the only place totals are computed.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired into props once plans 09/10 add mutating children
   const updateFromResponse = useCallback((next: DraftResponse) => {
+    setMutationError(null);
     setScreen({ phase: 'ready', draft: next });
+  }, []);
+
+  const handleMutationError = useCallback((message: string) => {
+    setMutationError(message);
   }, []);
 
   if (draftId === null) {
@@ -97,20 +106,21 @@ export function App() {
         <p className="text-label">{copy.headerLevel1}</p>
       </header>
       <main>
-        {draft.components.map((component, index) => {
-          const chosenCandidate = component.candidates.find(
-            (candidate) => candidate.fdcId === component.chosenFdcId,
-          );
-          return (
-            <div key={index} className="component-row">
-              <p className="text-label">{component.component}</p>
-              <p className="text-body">{component.grams} г</p>
-              <p className="text-body text-hint">
-                {chosenCandidate ? chosenCandidate.description : copy.noMatch}
-              </p>
-            </div>
-          );
-        })}
+        {mutationError ? <p className="text-body text-destructive">{mutationError}</p> : null}
+        {draft.components.map((component, index) => (
+          // Keying on the positional index is deliberate: the whole list is
+          // replaced wholesale from each API response (never reordered
+          // in-place by React state), so the index-key reordering caveat
+          // does not apply here.
+          <ComponentRow
+            key={index}
+            draftId={draft.draftId}
+            index={index}
+            component={component}
+            onUpdated={updateFromResponse}
+            onError={handleMutationError}
+          />
+        ))}
       </main>
       <footer className="sticky-footer" />
     </div>
