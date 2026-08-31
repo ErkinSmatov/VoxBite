@@ -19,7 +19,19 @@ function newComponent(overrides: Partial<Record<string, unknown>> = {}) {
     component: 'сметана',
     componentEn: 'сметана',
     grams: 100,
-    candidates: [{ fdcId: 1, description: 'Sour cream', source: 'sr_legacy_food', kcal: 100, proteinG: 2, fatG: 20, carbsG: 3, sugarG: null }],
+    candidates: [
+      {
+        fdcId: 1,
+        description: 'Sour cream',
+        source: 'sr_legacy_food' as const,
+        kcal: 100,
+        proteinG: 2,
+        fatG: 20,
+        carbsG: 3,
+        sugarG: null,
+        similarity: 0.9,
+      },
+    ],
     chosenFdcId: 1,
     weakMatch: false,
     ...overrides,
@@ -112,7 +124,7 @@ describe('createAddComponentHandler', () => {
     const getMatchingDeps = vi.fn().mockReturnValue({ embedder, repo: {} });
     const addComponent = vi.fn(async (_db, _draftId, _userId, raw, deps) => {
       await deps.embedder.embed([raw]);
-      return { ok: true, components: [newComponent()] };
+      return { ok: true as const, components: [newComponent()] };
     });
     const readDraft = vi.fn().mockResolvedValue({ id: 5, status: 'draft', localDate: null, diaryId: null });
     const handler = createAddComponentHandler({
