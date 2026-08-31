@@ -22,6 +22,17 @@ export const pipelineCopy = {
   ack: 'Секунду, разбираю 🎧',
 
   /**
+   * 04.1-02/D-02/D-03 — replaces `ack` in the same message once analysis
+   * finishes. Per D-03 the chat message is never rewritten into a result
+   * card (no component list, gram value, candidate name or nutrient number
+   * ever appears here again) — everything past this point lives only inside
+   * the Mini App, reached via the attached `web_app` button. This line just
+   * states the fact and what to do next, so the message doesn't look stuck
+   * on "Секунду, разбираю 🎧" forever.
+   */
+  analysisReady: 'Разбор готов. Открой, чтобы проверить и сохранить:',
+
+  /**
    * D-08 — a well-formed empty decomposition (the LLM understood the
    * transcript but found no food in it) is a NORMAL answer, not a failure.
    * Must not read like an error.

@@ -13,12 +13,14 @@
  * 5. Build `DraftComponent[]` — every component survives, weak or absent
  *    matches are flagged, never dropped (D-21).
  * 6. `saveDraft` the row.
- * 7. `editor.editMessage` with `cardRenderer.renderLevel1` — the Phase 4
- *    level-1 correction card WITH its `crc:` keyboard, same message edited
- *    in place (D-13 Phase 3 / D-01 Phase 4). 04-12: this replaces the old
- *    keyboardless `buildResultCard` render, which was 04-UAT.md's blocker —
- *    a card with no buttons made the entire Phase 4 correction UI
- *    unreachable from the product's only entry point.
+ * 7. `editor.editMessage` with `openRenderer.renderOpenButton` — replaces the
+ *    ack text with a short "analysis ready" status line and attaches a
+ *    Telegram `web_app` button addressed at the draft, same message edited
+ *    in place (D-13 Phase 3 / D-02, D-03 phase 04.1). This is the ONLY thing
+ *    that makes the Telegram Mini App correction UI reachable: no component
+ *    list, gram value, candidate name or nutrient number is ever written
+ *    into the chat message again — the Mini App is the sole place that
+ *    detail is shown (04.1-02, replacing 04-12's text-card render).
  * 8. `markUpdateStatus(..., 'done')` and one `logCost(...)` call.
  *
  * FAILURE HANDLING (03-RESEARCH.md Pitfall 6 — the governing rule): this
@@ -60,7 +62,7 @@ import { deriveLocalDate } from './local-date.js';
 import { logCost, type CostInputs } from './cost-log.js';
 import {
   isWeakMatch,
-  type DraftCardRenderer,
+  type OpenCorrectionRenderer,
   type DraftComponent,
   type MealDraft,
   type MessageEditor,
@@ -75,7 +77,7 @@ export interface PipelineDeps {
   embedder: Embedder;
   repo: FdcRepository;
   editor: MessageEditor;
-  cardRenderer: DraftCardRenderer;
+  openRenderer: OpenCorrectionRenderer;
 }
 
 export type ProcessMealInput =
@@ -290,7 +292,7 @@ export async function processMeal(deps: PipelineDeps, args: ProcessMealArgs): Pr
       });
       draftSaved = true;
 
-      const card = deps.cardRenderer.renderLevel1(draftComponents, draftId);
+      const card = deps.openRenderer.renderOpenButton(draftId);
       await deps.editor.editMessage(args.chatId, args.ackMessageId, card.text, card.replyMarkup);
       cardDelivered = true;
 

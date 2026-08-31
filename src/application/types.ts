@@ -108,7 +108,7 @@ export interface MealDraft {
  * this interface.
  *
  * `replyMarkup` (04-12) is an optional fourth parameter carrying an opaque
- * inline-keyboard value produced by `DraftCardRenderer` below. Telegram fact
+ * inline-keyboard value produced by `OpenCorrectionRenderer` below. Telegram fact
  * that matters here: omitting `reply_markup` on an `editMessageText` call
  * LEAVES any previous keyboard in place rather than clearing it (the same
  * fact `correction.ts`'s `NO_KEYBOARD` constant documents) — so every
@@ -131,19 +131,23 @@ export interface RenderedCard {
 }
 
 /**
- * The bot-layer port (04-12) that renders the D-01 (Phase 4) level-1
- * correction card — the meal list plus its `crc:` keyboard — WITHOUT this
- * layer ever importing grammY's `InlineKeyboard`. `src/bot/telegram/
- * draft-card-renderer.ts` supplies the only real implementation; the
- * pipeline only ever depends on this interface (mirrors `MessageEditor`
- * above).
+ * The bot-layer port (04.1-02) that replaces the Phase 4 draft-card-renderer
+ * port. Once a meal is analysed, the pipeline no longer rewrites the ack
+ * message into a text correction card — per D-02/D-03 (phase 04.1) it
+ * leaves the ack as a short status line and attaches a Telegram `web_app`
+ * button addressed at the draft, opening the Mini App. `src/bot/telegram/
+ * mini-app-button-renderer.ts` supplies the only real implementation, built
+ * WITHOUT this layer ever importing grammY's inline-keyboard type (mirrors
+ * `MessageEditor` above).
  *
- * `renderLevel1` handles the D-12 (Phase 4) empty-component-list case
- * itself (both `buildCorrectionCard` and `buildLevel1Keyboard` already
- * branch on an empty list) — callers never special-case it.
+ * `renderOpenButton` deliberately receives only a `draftId`, never a
+ * `DraftComponent[]` — this is a structural guarantee, not a convention:
+ * the application layer literally cannot pass component names, candidate
+ * descriptions, or nutrient numbers into a chat message through this port,
+ * because it never has the opportunity to (D-03).
  */
-export interface DraftCardRenderer {
-  renderLevel1(components: DraftComponent[], draftId: number): RenderedCard;
+export interface OpenCorrectionRenderer {
+  renderOpenButton(draftId: number): RenderedCard;
 }
 
 /** Every terminal, non-success outcome the voice pipeline can reach. */
