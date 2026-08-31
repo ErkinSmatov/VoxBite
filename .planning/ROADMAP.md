@@ -133,7 +133,7 @@ button, per CONTEXT.md D-02) — the same correct/confirm/diary-write logic Phas
 from chat cards + inline keyboards + a fragile text-input gate to a proper touch UI.
 **Requirements**: CORRECT-01, CORRECT-02, CORRECT-03, CORRECT-04, CORRECT-05, CORRECT-06, CORRECT-07, CORRECT-08, CALC-01, CALC-02, DIARY-01 (same IDs as Phase 4 — re-discharged through a new UI, no new IDs created)
 **Depends on:** Phase 4
-**Plans:** 7/14 plans executed
+**Plans:** 9/14 plans executed
 
 Plans:
 **Wave 1**
@@ -150,8 +150,8 @@ Plans:
 - [x] 04.1-08-PLAN.md — Mini App shell: Telegram bridge, API client, copy, theme CSS, screen states
 
 **Wave 4** *(blocked on Wave 3)*
-- [ ] 04.1-07-PLAN.md — recompute / delete / cancel endpoints + cross-endpoint recompute-guard tripwire
-- [ ] 04.1-09-PLAN.md — Mini App component rows: candidate picker, grams control, remove
+- [x] 04.1-07-PLAN.md — recompute / delete / cancel endpoints + cross-endpoint recompute-guard tripwire
+- [x] 04.1-09-PLAN.md — Mini App component rows: candidate picker, grams control, remove
 
 **Wave 5** *(blocked on Wave 4)*
 - [ ] 04.1-10-PLAN.md — Mini App totals, add-component, empty state, confirm/save/delete footer
@@ -187,5 +187,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 13/13 | Complete   | 2026-08-24 |
-| 04.1. Telegram Mini App correction UI | 7/14 | In Progress|  |
+| 04.1. Telegram Mini App correction UI | 9/14 | In Progress|  |
 | 5. Diary views | 0/TBD | Not started | - |
