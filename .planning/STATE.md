@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 04.1 context gathered
-last_updated: "2026-08-30T07:42:17.238Z"
-last_activity: 2026-08-30 -- Phase 04.1 planning complete
+last_updated: "2026-08-31T11:34:02.618Z"
+last_activity: 2026-08-31 -- Phase 04.1 execution started
 progress:
   total_phases: 6
   completed_phases: 4
@@ -22,14 +22,15 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 
 **Core value:** Точность распознавания блюда и подсчёта КБЖУ должна работать
 надёжно, даже если оплата, лимиты и напоминания на старте отсутствуют.
-**Current focus:** Phase 04.1 — Telegram Mini App correction UI
+**Current focus:** Phase 04.1 — telegram-mini-app-correction-ui-replace-the-in-chat-text-but
 
 ## Current Position
 
-Phase: 04 (confirm-correct-diary-persistence) — COMPLETE (13/13 plans, 2 gap-closure rounds; text-based correction of a reopened saved entry re-tested live pending, see 04-UAT.md)
+Phase: 04.1 (telegram-mini-app-correction-ui-replace-the-in-chat-text-but) — EXECUTING
+Plan: 1 of 14
 Phase: 04.1 (Telegram Mini App correction UI) — INSERTED, not yet planned
 Next: /gsd-plan-phase 04.1
-Last activity: 2026-08-30 -- Phase 04.1 planning complete
+Last activity: 2026-08-31 -- Phase 04.1 execution started
 
 Progress: [██████████] 100%
 

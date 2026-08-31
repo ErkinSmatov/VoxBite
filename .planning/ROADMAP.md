@@ -133,12 +133,12 @@ button, per CONTEXT.md D-02) — the same correct/confirm/diary-write logic Phas
 from chat cards + inline keyboards + a fragile text-input gate to a proper touch UI.
 **Requirements**: CORRECT-01, CORRECT-02, CORRECT-03, CORRECT-04, CORRECT-05, CORRECT-06, CORRECT-07, CORRECT-08, CALC-01, CALC-02, DIARY-01 (same IDs as Phase 4 — re-discharged through a new UI, no new IDs created)
 **Depends on:** Phase 4
-**Plans:** 14 plans
+**Plans:** 2/14 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 04.1-01-PLAN.md — Mini App toolchain: vetted deps, api/ wired into test+typecheck, Vite/Vercel scaffold
-- [ ] 04.1-02-PLAN.md — Bot-side `web_app` Open button, MINI_APP_BASE_URL, rewritten reachability tripwire
+- [x] 04.1-01-PLAN.md — Mini App toolchain: vetted deps, api/ wired into test+typecheck, Vite/Vercel scaffold
+- [x] 04.1-02-PLAN.md — Bot-side `web_app` Open button, MINI_APP_BASE_URL, rewritten reachability tripwire
 
 **Wave 2** *(blocked on Wave 1)*
 - [ ] 04.1-03-PLAN.md — API shared lib: initData HMAC auth boundary, user resolve, status mapping, response envelope
@@ -187,5 +187,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 13/13 | Complete   | 2026-08-24 |
-| 04.1. Telegram Mini App correction UI | 0/14 | Not started | - |
+| 04.1. Telegram Mini App correction UI | 2/14 | In Progress|  |
 | 5. Diary views | 0/TBD | Not started | - |
