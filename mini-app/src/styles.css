@@ -1,0 +1,126 @@
+/*
+ * Design tokens for the Mini App correction screen, per
+ * 04.1-UI-SPEC.md's Spacing Scale / Typography / Color sections.
+ *
+ * Telegram injects `--tg-theme-*` CSS custom properties into the WebView's
+ * root automatically, matching the user's actual Telegram theme
+ * (light/dark/custom). This stylesheet consumes those variables directly —
+ * it does NOT define a parallel OS-level color-scheme media-query system,
+ * which would fight Telegram's own theming mechanism. Every color below is
+ * `var(--tg-theme-*, <fallback>)`; the fallback hex only applies during
+ * local dev outside a real Telegram WebView.
+ */
+
+:root {
+  /* Spacing scale (multiples of 4) */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 16px;
+  --sp-lg: 24px;
+  --sp-xl: 32px;
+
+  /* Typography: exactly 4 sizes, exactly 2 weights */
+  --font-caption-size: 13px;
+  --font-caption-weight: 400;
+  --font-caption-line-height: 1.4;
+
+  --font-body-size: 15px;
+  --font-body-weight: 400;
+  --font-body-line-height: 1.5;
+
+  --font-label-size: 17px;
+  --font-label-weight: 600;
+  --font-label-line-height: 1.3;
+
+  --font-heading-size: 20px;
+  --font-heading-weight: 600;
+  --font-heading-line-height: 1.2;
+
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Color — consumed from Telegram's injected theme, static fallback for local dev */
+  --color-bg: var(--tg-theme-bg-color, #ffffff);
+  --color-secondary-bg: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  --color-accent: var(--tg-theme-button-color, #2ea6ff);
+  --color-accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --color-destructive: var(--tg-theme-destructive-text-color, #e53935);
+  --color-text: var(--tg-theme-text-color, #000000);
+  --color-hint: var(--tg-theme-hint-color, #999999);
+  --color-link: var(--tg-theme-link-color, #2ea6ff);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
+}
+
+/* Typography roles */
+.text-caption {
+  font-size: var(--font-caption-size);
+  font-weight: var(--font-caption-weight);
+  line-height: var(--font-caption-line-height);
+}
+
+.text-body {
+  font-size: var(--font-body-size);
+  font-weight: var(--font-body-weight);
+  line-height: var(--font-body-line-height);
+}
+
+.text-label {
+  font-size: var(--font-label-size);
+  font-weight: var(--font-label-weight);
+  line-height: var(--font-label-line-height);
+}
+
+.text-heading {
+  font-size: var(--font-heading-size);
+  font-weight: var(--font-heading-weight);
+  line-height: var(--font-heading-line-height);
+}
+
+.text-hint {
+  color: var(--color-hint);
+}
+
+.text-destructive {
+  color: var(--color-destructive);
+}
+
+/*
+ * Shared floor for every interactive control in this app (±10 г buttons,
+ * candidate list items, Убрать/Добавить/Подтвердить/Удалить buttons,
+ * Да/Нет in delete confirmation) — the standard iOS/Android touch-target
+ * minimum. Plans 09/10 apply this class to every tappable element instead
+ * of each re-declaring the floor.
+ */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  background: var(--color-secondary-bg);
+  padding-left: var(--sp-md);
+  padding-right: var(--sp-md);
+  padding-bottom: var(--sp-md);
+  padding-top: calc(var(--sp-md) + env(safe-area-inset-top));
+}
+
+.sticky-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--color-secondary-bg);
+  padding-left: var(--sp-md);
+  padding-right: var(--sp-md);
+  padding-top: var(--sp-md);
+  padding-bottom: calc(var(--sp-md) + env(safe-area-inset-bottom));
+}
