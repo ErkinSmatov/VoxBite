@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiGet } from './lib/api-client';
-import { getDraftIdFromUrl } from './lib/telegram';
+import { getDraftIdFromUrl, closeApp } from './lib/telegram';
 import { copy } from './copy';
 import { ComponentRow } from './components/ComponentRow';
+import { SummaryTotals } from './components/SummaryTotals';
+import { AddComponent } from './components/AddComponent';
+import { FooterActions } from './components/FooterActions';
 import type { DraftResponse } from './types';
 
 type Screen =
@@ -28,6 +31,18 @@ export function App() {
   // state — the rest of the screen (and the user's in-progress edits) stays
   // visible.
   const [mutationError, setMutationError] = useState<string | null>(null);
+  // The Mini App's only "it worked" signal (D-03 removed every chat-side
+  // confirmation message) — shown for ~800ms, then Telegram.WebApp.close().
+  const [savedBanner, setSavedBanner] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const load = useCallback(async (id: number) => {
     setScreen({ phase: 'loading' });
@@ -69,6 +84,13 @@ export function App() {
     setMutationError(message);
   }, []);
 
+  const handleSaved = useCallback(() => {
+    setSavedBanner(true);
+    closeTimerRef.current = setTimeout(() => {
+      closeApp();
+    }, 800);
+  }, []);
+
   if (draftId === null) {
     return <FullScreenMessage text={copy.expired} />;
   }
@@ -100,29 +122,56 @@ export function App() {
 
   const { draft } = screen;
 
+  if (savedBanner) {
+    return <FullScreenMessage text={copy.savedToDiary} />;
+  }
+
+  const isEmpty = draft.components.length === 0;
+
   return (
     <div>
       <header className="sticky-header">
         <p className="text-label">{copy.headerLevel1}</p>
+        <SummaryTotals
+          total={draft.total}
+          contributingCount={draft.contributingCount}
+          saved={draft.saved}
+        />
       </header>
       <main>
         {mutationError ? <p className="text-body text-destructive">{mutationError}</p> : null}
-        {draft.components.map((component, index) => (
-          // Keying on the positional index is deliberate: the whole list is
-          // replaced wholesale from each API response (never reordered
-          // in-place by React state), so the index-key reordering caveat
-          // does not apply here.
-          <ComponentRow
-            key={index}
-            draftId={draft.draftId}
-            index={index}
-            component={component}
-            onUpdated={updateFromResponse}
-            onError={handleMutationError}
-          />
-        ))}
+        {isEmpty ? (
+          <div>
+            <p className="text-label">{copy.emptyStateHeading}</p>
+            <p className="text-body">{copy.emptyStateBody}</p>
+          </div>
+        ) : (
+          draft.components.map((component, index) => (
+            // Keying on the positional index is deliberate: the whole list is
+            // replaced wholesale from each API response (never reordered
+            // in-place by React state), so the index-key reordering caveat
+            // does not apply here.
+            <ComponentRow
+              key={index}
+              draftId={draft.draftId}
+              index={index}
+              component={component}
+              onUpdated={updateFromResponse}
+              onError={handleMutationError}
+            />
+          ))
+        )}
+        <AddComponent draftId={draft.draftId} onUpdated={updateFromResponse} onError={handleMutationError} />
       </main>
-      <footer className="sticky-footer" />
+      <FooterActions
+        draftId={draft.draftId}
+        saved={draft.saved}
+        componentCount={draft.components.length}
+        blockedComponent={draft.blockedComponent}
+        onUpdated={updateFromResponse}
+        onError={handleMutationError}
+        onSaved={handleSaved}
+      />
     </div>
   );
 }
