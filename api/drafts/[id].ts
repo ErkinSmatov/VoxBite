@@ -1,8 +1,8 @@
 /**
  * GET /api/drafts/[id] — loads one draft, scoped to the validated caller, for
- * the Mini App's correction screen (CORRECT-01). Reproduces
- * `src/bot/handlers/correction.ts`'s identity -> scoped read -> status/expiry
- * gate sequence (lines ~175-205) as HTTP status codes instead of
+ * the Mini App's correction screen (CORRECT-01). Reproduces the (now-removed,
+ * 04.1-11) chat-native correction handler's identity -> scoped read ->
+ * status/expiry gate sequence as HTTP status codes instead of
  * `editMessageText` redraws — see 04.1-PATTERNS.md's "api/drafts/[id].ts"
  * section.
  *

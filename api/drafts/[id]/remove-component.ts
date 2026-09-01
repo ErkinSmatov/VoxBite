@@ -4,8 +4,8 @@
  * CORRECT-05/D-12: removes one component from a draft, including the last
  * remaining one. The empty-list outcome is a legitimate first-class state
  * (the frontend renders the empty-state screen and offers "add"), NOT an
- * error, NOT a 410, and NOT an automatic abandon — mirrors
- * `src/bot/handlers/correction.ts`'s `case 'rm'`.
+ * error, NOT a 410, and NOT an automatic abandon — mirrors the (now-removed,
+ * 04.1-11) chat-native correction handler's remove-component case.
  *
  * Guard, validate body, call `removeComponent`, translate the result — no
  * room to reinvent auth, status codes, or logging here (see `api/_lib/http.ts`).

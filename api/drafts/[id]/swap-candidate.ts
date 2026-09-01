@@ -8,9 +8,9 @@
  * rounds 3-4 / CR-02): when the draft being corrected is already
  * `status === 'confirmed'` (i.e. already saved to the diary), the saved
  * `diary` row must be recomputed after the mutation via
- * `recomputeSavedEntry`, exactly like `src/bot/handlers/correction.ts`'s
- * `case 'cand'` does. Porting to HTTP without carrying this guard across
- * would silently desync the diary from the draft.
+ * `recomputeSavedEntry`, exactly like the (now-removed, 04.1-11) chat-native
+ * correction handler's candidate-swap case did. Porting to HTTP without
+ * carrying this guard across would silently desync the diary from the draft.
  *
  * LOGGING RULE: `logApiError` only — never the request body, component name,
  * or candidate description (health data).

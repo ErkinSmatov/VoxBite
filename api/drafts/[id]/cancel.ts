@@ -2,8 +2,8 @@
  * cancel — POST /api/drafts/[id]/cancel, the D-12 escape hatch for the
  * empty state (every component removed). 04.1-UI-SPEC.md's empty state
  * offers `✕ Отменить разбор` alongside `➕ Добавить`; without this endpoint
- * that button has nothing behind it. Ported from
- * `src/bot/handlers/correction.ts`'s `case 'cancel'`.
+ * that button has nothing behind it. Ported from the (now-removed, 04.1-11)
+ * chat-native correction handler's cancel case.
  *
  * The `fromStatus` argument to `claimAbandon` is the hardcoded literal
  * `'draft'`, written directly in this file — never taken from the request

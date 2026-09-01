@@ -1,9 +1,9 @@
 /**
  * POST /api/drafts/[id]/confirm — turns a confirmed draft into exactly one
- * `diary` row (CORRECT-02, DIARY-01). Reproduces
- * `src/bot/handlers/correction.ts`'s `case 'confirm'` (lines ~340-377) as HTTP
- * status codes instead of card redraws — see 04.1-PATTERNS.md's
- * "api/drafts/[id]/confirm.ts" section.
+ * `diary` row (CORRECT-02, DIARY-01). Reproduces the (now-removed, 04.1-11)
+ * chat-native correction handler's confirm case as HTTP status codes instead
+ * of card redraws — see 04.1-PATTERNS.md's "api/drafts/[id]/confirm.ts"
+ * section.
  *
  * No request body: confirm takes no parameters beyond the draft id in the
  * path. The server confirms whatever is currently persisted; nothing here

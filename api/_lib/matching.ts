@@ -1,8 +1,9 @@
 /**
  * matching — the Mini App API's own construct-once wiring for the FDC
- * ingredient search, mirroring `src/bot/correction-wiring.ts`'s invariant
- * (NOT importing it — that module lives in the bot layer and this file must
- * not depend on `grammy` or anything bot-shaped).
+ * ingredient search, mirroring the same one-embedder-one-repository-per-
+ * container invariant the bot layer's own meal-pipeline wiring follows (NOT
+ * importing it — that module lives in the bot layer and this file must not
+ * depend on `grammy` or anything bot-shaped).
  *
  * ONE `Embedder` and ONE `FdcRepository` per serverless container. A
  * different embedding model or dimension count than the offline FDC indexer

@@ -3,28 +3,6 @@ import { createTextHandler, createUnsupportedHandler, createVoiceHandler, MAX_TE
 import { pipelineCopy } from '../formatting/pipeline-copy.js';
 import { VoiceTooLongError, VoiceUnavailableError } from '../telegram/download-voice.js';
 
-// Gap closure 04-13, Task 3: file-scoped drizzle-orm mock so the seam test
-// below can run the REAL findAwaitingDraft (via the REAL
-// createCorrectionTextHandler) against a hand-built fake db, the same
-// tagged-condition approach draft-store.test.ts uses. This mock is isolated
-// to this test file — it does not affect draft-store.test.ts or
-// correction.test.ts.
-vi.mock('drizzle-orm', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('drizzle-orm')>();
-  return {
-    ...actual,
-    eq: (column: unknown, value: unknown) => ({ kind: 'eq' as const, column, value }),
-    and: (...conditions: unknown[]) => ({ kind: 'and' as const, conditions }),
-    or: (...conditions: unknown[]) => ({ kind: 'or' as const, conditions }),
-    isNotNull: (column: unknown) => ({ kind: 'isNotNull' as const, column }),
-    desc: (column: unknown) => ({ kind: 'desc' as const, column }),
-  };
-});
-
-const { createCorrectionTextHandler } = await import('./correction.js');
-const { diaryDrafts } = await import('../../db/schema/diary-drafts.js');
-import type { DraftComponent } from '../../application/types.js';
-
 function makeCtx(opts: {
   telegramId?: number;
   chatId?: number;
@@ -34,7 +12,6 @@ function makeCtx(opts: {
   messageDate?: number;
 }) {
   const replies: string[] = [];
-  const apiEdits: { chatId: number; messageId: number; text: string; other?: unknown }[] = [];
   const base = opts.voice
     ? { voice: opts.voice }
     : opts.text !== undefined
@@ -49,134 +26,8 @@ function makeCtx(opts: {
       replies.push(text);
       return { message_id: 999 };
     }),
-    // Only exercised by the D-04 text-gate seam test below, which routes
-    // through the REAL correction.ts handleAwaitingText -- that redraws the
-    // draft's own card via ctx.api.editMessageText, pinned to the draft's
-    // chat/message id (never ctx.editMessageText).
-    api: {
-      editMessageText: vi.fn(async (chatId: number, messageId: number, text: string, other?: unknown) => {
-        apiEdits.push({ chatId, messageId, text, other });
-        return true;
-      }),
-    },
   };
-  return { ctx, replies, apiEdits };
-}
-
-// Gap closure 04-13, Task 3: minimal fake diary_drafts row + db harness,
-// copied verbatim (per this plan's <action>) from draft-store.test.ts's
-// makeFakeDb/makeRow/matches -- not imported across test files.
-type FakeDraftRow = {
-  id: number;
-  userId: number;
-  chatId: number;
-  messageId: number;
-  source: 'voice' | 'text';
-  transcript: string;
-  components: DraftComponent[];
-  status: 'draft' | 'confirmed' | 'abandoned';
-  awaitingInput: { kind: 'add_component' | 'typed_grams'; componentIndex?: number } | null;
-  localDate: string | null;
-  diaryId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type EqCondition = { kind: 'eq'; column: unknown; value: unknown };
-type AndCondition = { kind: 'and'; conditions: DraftCondition[] };
-type OrCondition = { kind: 'or'; conditions: DraftCondition[] };
-type IsNotNullCondition = { kind: 'isNotNull'; column: unknown };
-type DraftCondition = EqCondition | AndCondition | OrCondition | IsNotNullCondition;
-
-function draftMatches(condition: DraftCondition, row: FakeDraftRow): boolean {
-  if (condition.kind === 'and') {
-    return condition.conditions.every((c) => draftMatches(c as DraftCondition, row));
-  }
-  if (condition.kind === 'or') {
-    return condition.conditions.some((c) => draftMatches(c as DraftCondition, row));
-  }
-  if (condition.kind === 'isNotNull') {
-    if (condition.column === diaryDrafts.awaitingInput) return row.awaitingInput !== null;
-    throw new Error('unexpected isNotNull() column in test');
-  }
-  if (condition.column === diaryDrafts.id) return row.id === condition.value;
-  if (condition.column === diaryDrafts.userId) return row.userId === condition.value;
-  if (condition.column === diaryDrafts.status) return row.status === condition.value;
-  throw new Error('unexpected eq() column in test');
-}
-
-function makeFakeDraftDb(initialRows: FakeDraftRow[] = []) {
-  const rows = new Map(initialRows.map((r) => [r.id, { ...r }]));
-
-  function selectResult(condition: DraftCondition) {
-    const filtered = [...rows.values()].filter((row) => draftMatches(condition, row));
-    return {
-      orderBy(order: { kind: 'desc'; column: unknown }) {
-        const sorted = [...filtered].sort((a, b) => {
-          if (order.column === diaryDrafts.updatedAt) {
-            return b.updatedAt.getTime() - a.updatedAt.getTime();
-          }
-          throw new Error('unexpected orderBy() column in test');
-        });
-        return {
-          limit(n: number) {
-            return Promise.resolve(sorted.slice(0, n).map(toSelectShape));
-          },
-        };
-      },
-      limit(n: number) {
-        return Promise.resolve(filtered.slice(0, n).map(toSelectShape));
-      },
-    };
-  }
-
-  function toSelectShape(row: FakeDraftRow) {
-    const { updatedAt: _updatedAt, ...rest } = row;
-    return rest;
-  }
-
-  const db = {
-    select(_cols: unknown) {
-      return {
-        from() {
-          return {
-            where(condition: DraftCondition) {
-              return selectResult(condition);
-            },
-          };
-        },
-      };
-    },
-  };
-
-  return { db, rows };
-}
-
-function makeFakeDraftRow(overrides: Partial<FakeDraftRow> = {}): FakeDraftRow {
-  const component: DraftComponent = {
-    component: 'говядина',
-    componentEn: 'beef',
-    grams: 150,
-    candidates: [],
-    chosenFdcId: null,
-    weakMatch: true,
-  };
-  return {
-    id: 7,
-    userId: 42,
-    chatId: 100,
-    messageId: 999,
-    source: 'voice',
-    transcript: 'бешбармак',
-    components: [component],
-    status: 'confirmed',
-    awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
-    localDate: '2026-08-15',
-    diaryId: 5,
-    createdAt: new Date('2026-08-15T00:00:00Z'),
-    updatedAt: new Date('2026-08-15T00:00:00Z'),
-    ...overrides,
-  };
+  return { ctx, replies };
 }
 
 function makeDeps(overrides: Record<string, unknown> = {}) {
@@ -390,40 +241,6 @@ describe('createTextHandler', () => {
     expect(call[1].timezone).toBe('Asia/Almaty');
   });
 
-  it('a text message while a draft is awaiting input is intercepted before claimUpdate: zero claimUpdate, zero processMeal (D-04)', async () => {
-    const interceptCorrectionText = vi.fn(async () => true);
-    const d = makeDeps({ interceptCorrectionText });
-    const handler = createTextHandler(d as never);
-    const { ctx, replies } = makeCtx({ telegramId: 1, chatId: 2, text: 'сметана' });
-
-    await handler(ctx as never);
-
-    expect(interceptCorrectionText).toHaveBeenCalledTimes(1);
-    expect(d.claimUpdate).not.toHaveBeenCalled();
-    expect(d.processMeal).not.toHaveBeenCalled();
-    expect(replies).toHaveLength(0);
-  });
-
-  it('a text message with nothing awaiting still runs the full existing gate sequence unchanged', async () => {
-    const interceptCorrectionText = vi.fn(async () => false);
-    const d = makeDeps({ interceptCorrectionText });
-    const handler = createTextHandler(d as never);
-    const { ctx, replies } = makeCtx({
-      telegramId: 1,
-      chatId: 2,
-      text: 'омлет',
-      messageDate: 1_700_000_000,
-    });
-
-    await handler(ctx as never);
-    await Promise.resolve();
-
-    expect(interceptCorrectionText).toHaveBeenCalledTimes(1);
-    expect(d.order.slice(0, 3)).toEqual(['findOnboardedUser', 'claimUpdate', 'isDailyCapReached']);
-    expect(replies).toContain(pipelineCopy.ack);
-    expect(d.processMeal).toHaveBeenCalledTimes(1);
-  });
-
   it('missing message.date falls back to the current time without throwing', async () => {
     const d = makeDeps();
     const handler = createTextHandler(d as never);
@@ -507,59 +324,6 @@ describe('createUnsupportedHandler', () => {
     expect(claimUpdate).not.toHaveBeenCalled();
     expect(downloadVoice).not.toHaveBeenCalled();
     expect(processMeal).not.toHaveBeenCalled();
-  });
-});
-
-describe('D-04 text gate seam: real findAwaitingDraft routing (gap closure 04-13)', () => {
-  // Regression guard for 04-UAT.md Round 3 / 04-REVIEW.md CR-01 & CR-02: the
-  // owner reopened a saved (confirmed) diary entry via ✎ Поправить, typed a
-  // correction ("Говядина 45г"), and it was silently routed into the paid
-  // meal pipeline instead of applied as a correction, creating a stray
-  // diary row and spending real OpenAI money. This test wires the REAL
-  // findAwaitingDraft (via the REAL createCorrectionTextHandler) — not a
-  // mock — through meal.ts's own gate 0.5, so a regression in either fix
-  // (draft-store.ts's widened filter, or correction.ts's recompute call) is
-  // caught at this seam, not just inside draft-store.test.ts/
-  // correction.test.ts's isolated unit tests.
-  it('a typed correction on a reopened confirmed draft is applied, never dispatched to processMeal', async () => {
-    const { db: fakeDb } = makeFakeDraftDb([makeFakeDraftRow()]);
-    const applyTypedGramsSpy = vi.fn(async () => ({
-      ok: true as const,
-      components: makeFakeDraftRow().components,
-    }));
-    const recomputeSavedEntrySpy = vi.fn(async () => ({ ok: true as const, diaryId: 5 }));
-
-    const interceptCorrectionText = createCorrectionTextHandler({
-      db: fakeDb as never,
-      embedder: {} as never,
-      repo: {} as never,
-      applyTypedGrams: applyTypedGramsSpy as never,
-      recomputeSavedEntry: recomputeSavedEntrySpy as never,
-    });
-
-    const d = makeDeps({ interceptCorrectionText });
-    const handler = createTextHandler(d as never);
-    const { ctx } = makeCtx({ telegramId: 1, chatId: 100, text: '200' });
-
-    await handler(ctx as never);
-    await Promise.resolve();
-
-    expect(d.processMeal).toHaveBeenCalledTimes(0);
-    expect(applyTypedGramsSpy).toHaveBeenCalledTimes(1);
-    expect(recomputeSavedEntrySpy).toHaveBeenCalledTimes(1);
-
-    // Manual trace (plan's <verification> item 3): if Task 1's or(...) were
-    // reverted to a bare eq(status, 'draft'), draftMatches would evaluate
-    // the eq(status,'draft') leaf as false against this fixture's
-    // status: 'confirmed' row (draftMatches' eq branch does a strict
-    // row.status === condition.value comparison) -- selectResult's filter
-    // would then exclude the row entirely, findAwaitingDraft would return
-    // null, interceptCorrectionText would return false, and meal.ts would
-    // fall through to claimUpdate/processMeal instead -- so this assertion
-    // (processMeal called 0 times) would fail and processMeal would
-    // instead be called once. If Task 2's recomputeSavedEntry call were
-    // reverted, recomputeSavedEntrySpy would never be invoked and the
-    // `toHaveBeenCalledTimes(1)` assertion above would fail with 0 calls.
   });
 });
 
