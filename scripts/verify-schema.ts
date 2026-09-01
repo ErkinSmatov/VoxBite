@@ -278,6 +278,37 @@ async function checkRls(sql: postgres.Sql): Promise<void> {
   }
 }
 
+/**
+ * Phase 04.1 (04.1-12): diary_drafts.awaiting_input was dropped by
+ * drizzle/0008_harsh_callisto.sql once the chat-native correction UI (and
+ * the D-04 text-input gate it backed) was deleted in favor of the Telegram
+ * Mini App. This is a negative assertion, not a positive column-list check,
+ * because that's the shape of regression this migration is guarding
+ * against: a future accidental re-add of the column (e.g. a stale local
+ * schema edit re-introducing it) would otherwise pass silently.
+ */
+async function checkDiaryDraftsColumnDropped(sql: postgres.Sql): Promise<void> {
+  const rows = await sql<{ column_name: string }[]>`
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'diary_drafts'
+      and column_name = 'awaiting_input'
+  `;
+  if (rows.length === 0) {
+    record(
+      'diary_drafts больше не хранит поле ожидания ввода',
+      true,
+      'колонка отсутствует — удалена миграцией 0008 после переноса коррекции в Telegram Mini App',
+    );
+  } else {
+    record(
+      'diary_drafts больше не хранит поле ожидания ввода',
+      false,
+      'колонка снова присутствует в таблице diary_drafts, хотя должна быть удалена',
+      'Проверь миграцию drizzle/0008_harsh_callisto.sql — она должна быть применена (`npm run db:migrate`), и убедись, что схема в src/db/schema/diary-drafts.ts не была случайно возвращена к старому виду',
+    );
+  }
+}
+
 interface JsonOutput {
   ok: boolean;
   checks: CheckResult[];
@@ -308,6 +339,7 @@ async function main(): Promise<void> {
     await checkHnswIndex(sql);
     await checkUsersConstraints(sql);
     await checkRls(sql);
+    await checkDiaryDraftsColumnDropped(sql);
   } finally {
     await sql.end();
   }
