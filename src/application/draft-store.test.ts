@@ -3,11 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 // Same tagged-condition mocking approach as idempotency.test.ts/limits.test.ts:
-// real eq/and/or/isNotNull/desc return opaque SQL fragments meant for
-// Postgres, not for inspection in a unit test -- this mock replaces them
-// with plain, tagged objects the fake `db` below can read directly, while
-// asserting on column *identity* (the real exported column object) rather
-// than a guessed string key.
+// real eq/and/or return opaque SQL fragments meant for Postgres, not for
+// inspection in a unit test -- this mock replaces them with plain, tagged
+// objects the fake `db` below can read directly, while asserting on column
+// *identity* (the real exported column object) rather than a guessed string
+// key.
 vi.mock('drizzle-orm', async (importOriginal) => {
   const actual = await importOriginal<typeof import('drizzle-orm')>();
   return {
@@ -15,20 +15,10 @@ vi.mock('drizzle-orm', async (importOriginal) => {
     eq: (column: unknown, value: unknown) => ({ kind: 'eq' as const, column, value }),
     and: (...conditions: unknown[]) => ({ kind: 'and' as const, conditions }),
     or: (...conditions: unknown[]) => ({ kind: 'or' as const, conditions }),
-    isNotNull: (column: unknown) => ({ kind: 'isNotNull' as const, column }),
-    desc: (column: unknown) => ({ kind: 'desc' as const, column }),
   };
 });
 
-const {
-  readDraft,
-  findAwaitingDraft,
-  updateDraftComponents,
-  setAwaitingInput,
-  clearAwaitingInput,
-  claimConfirm,
-  claimAbandon,
-} = await import('./draft-store.js');
+const { readDraft, updateDraftComponents, claimConfirm, claimAbandon } = await import('./draft-store.js');
 const { diaryDrafts } = await import('../db/schema/diary-drafts.js');
 const { isDraftExpired, DRAFT_TTL_HOURS } = await import('./types.js');
 import type { DraftComponent } from './types.js';
@@ -42,7 +32,6 @@ type FakeRow = {
   transcript: string;
   components: DraftComponent[];
   status: 'draft' | 'confirmed' | 'abandoned';
-  awaitingInput: { kind: 'add_component' | 'typed_grams'; componentIndex?: number } | null;
   localDate: string | null;
   diaryId: number | null;
   createdAt: Date;
@@ -52,15 +41,14 @@ type FakeRow = {
 type EqCondition = { kind: 'eq'; column: unknown; value: unknown };
 type AndCondition = { kind: 'and'; conditions: Condition[] };
 type OrCondition = { kind: 'or'; conditions: Condition[] };
-type IsNotNullCondition = { kind: 'isNotNull'; column: unknown };
-type Condition = EqCondition | AndCondition | OrCondition | IsNotNullCondition;
+type Condition = EqCondition | AndCondition | OrCondition;
 
 function columnOf(condition: EqCondition): unknown {
   return condition.column;
 }
 
-/** Flattens a (possibly nested) `and(...)`/`or(...)` tree to its leaf eq/isNotNull conditions. */
-function leaves(condition: Condition): (EqCondition | IsNotNullCondition)[] {
+/** Flattens a (possibly nested) `and(...)`/`or(...)` tree to its leaf eq conditions. */
+function leaves(condition: Condition): EqCondition[] {
   if (condition.kind === 'and' || condition.kind === 'or') {
     return condition.conditions.flatMap((c) => leaves(c as Condition));
   }
@@ -73,10 +61,6 @@ function matches(condition: Condition, row: FakeRow): boolean {
   }
   if (condition.kind === 'or') {
     return condition.conditions.some((c) => matches(c as Condition, row));
-  }
-  if (condition.kind === 'isNotNull') {
-    if (condition.column === diaryDrafts.awaitingInput) return row.awaitingInput !== null;
-    throw new Error('unexpected isNotNull() column in test');
   }
   // eq
   if (condition.column === diaryDrafts.id) return row.id === condition.value;
@@ -100,19 +84,6 @@ function makeFakeDb(initialRows: FakeRow[] = []) {
     lastWhere.select = condition;
     const filtered = [...rows.values()].filter((row) => matches(condition, row));
     return {
-      orderBy(order: { kind: 'desc'; column: unknown }) {
-        const sorted = [...filtered].sort((a, b) => {
-          if (order.column === diaryDrafts.updatedAt) {
-            return b.updatedAt.getTime() - a.updatedAt.getTime();
-          }
-          throw new Error('unexpected orderBy() column in test');
-        });
-        return {
-          limit(n: number) {
-            return Promise.resolve(sorted.slice(0, n).map(toSelectShape));
-          },
-        };
-      },
       limit(n: number) {
         return Promise.resolve(filtered.slice(0, n).map(toSelectShape));
       },
@@ -201,7 +172,6 @@ function makeRow(overrides: Partial<FakeRow> = {}): FakeRow {
     transcript: 'курица с рисом',
     components: sampleComponents(),
     status: 'draft',
-    awaitingInput: null,
     localDate: '2026-08-15',
     diaryId: null,
     createdAt: new Date('2026-08-15T00:00:00Z'),
@@ -273,99 +243,6 @@ describe('updateDraftComponents', () => {
         throw new Error(`found forbidden module-scope mutable binding: ${trimmed}`);
       }
     }
-  });
-});
-
-describe('setAwaitingInput / clearAwaitingInput', () => {
-  it('setAwaitingInput writes awaiting_input scoped by user', async () => {
-    const { db, rows } = makeFakeDb([makeRow({ id: 1, userId: 10 })]);
-
-    const ok = await setAwaitingInput(asDb(db), 1, 10, { kind: 'add_component' });
-
-    expect(ok).toBe(true);
-    expect(rows.get(1)?.awaitingInput).toEqual({ kind: 'add_component' });
-  });
-
-  it('clearAwaitingInput nulls out awaiting_input scoped by user', async () => {
-    const { db, rows } = makeFakeDb([
-      makeRow({ id: 1, userId: 10, awaitingInput: { kind: 'typed_grams', componentIndex: 0 } }),
-    ]);
-
-    const ok = await clearAwaitingInput(asDb(db), 1, 10);
-
-    expect(ok).toBe(true);
-    expect(rows.get(1)?.awaitingInput).toBeNull();
-  });
-
-  it('does not affect a draft belonging to a different user', async () => {
-    const { db, rows } = makeFakeDb([makeRow({ id: 1, userId: 10 })]);
-
-    const ok = await setAwaitingInput(asDb(db), 1, 999, { kind: 'add_component' });
-
-    expect(ok).toBe(false);
-    expect(rows.get(1)?.awaitingInput).toBeNull();
-  });
-});
-
-describe('findAwaitingDraft', () => {
-  it('orders by updatedAt descending and limits to 1', async () => {
-    const { db } = makeFakeDb([
-      makeRow({
-        id: 1,
-        userId: 10,
-        awaitingInput: { kind: 'add_component' },
-        updatedAt: new Date('2026-08-15T10:00:00Z'),
-      }),
-      makeRow({
-        id: 2,
-        userId: 10,
-        awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
-        updatedAt: new Date('2026-08-15T12:00:00Z'),
-      }),
-    ]);
-
-    const result = await findAwaitingDraft(asDb(db), 10);
-
-    expect(result?.id).toBe(2);
-  });
-
-  it('returns null when no draft is awaiting input', async () => {
-    const { db } = makeFakeDb([makeRow({ id: 1, userId: 10, awaitingInput: null })]);
-
-    const result = await findAwaitingDraft(asDb(db), 10);
-
-    expect(result).toBeNull();
-  });
-
-  it('returns a status: confirmed row with awaiting_input set (gap closure 04-13, CR-01: reopened saved entry)', async () => {
-    const { db } = makeFakeDb([
-      makeRow({
-        id: 1,
-        userId: 10,
-        status: 'confirmed',
-        awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
-      }),
-    ]);
-
-    const result = await findAwaitingDraft(asDb(db), 10);
-
-    expect(result?.id).toBe(1);
-    expect(result?.status).toBe('confirmed');
-  });
-
-  it('does not return a status: abandoned row even with a stale awaiting_input set (gap closure 04-13)', async () => {
-    const { db } = makeFakeDb([
-      makeRow({
-        id: 1,
-        userId: 10,
-        status: 'abandoned',
-        awaitingInput: { kind: 'typed_grams', componentIndex: 0 },
-      }),
-    ]);
-
-    const result = await findAwaitingDraft(asDb(db), 10);
-
-    expect(result).toBeNull();
   });
 });
 

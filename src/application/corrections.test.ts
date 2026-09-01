@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 // inspection in a unit test -- this mock replaces them with plain, tagged
 // objects the fake `db` below can read directly, asserting on column
 // *identity* rather than a guessed string key. corrections.ts composes
-// draft-store.ts's readDraft/updateDraftComponents/clearAwaitingInput, which
-// is what actually calls eq/and/or -- so this file needs the same mock.
+// draft-store.ts's readDraft/updateDraftComponents, which is what actually
+// calls eq/and/or -- so this file needs the same mock.
 vi.mock('drizzle-orm', async (importOriginal) => {
   const actual = await importOriginal<typeof import('drizzle-orm')>();
   return {
@@ -43,7 +43,6 @@ type FakeRow = {
   transcript: string;
   components: DraftComponent[];
   status: 'draft' | 'confirmed' | 'abandoned';
-  awaitingInput: { kind: 'add_component' | 'typed_grams'; componentIndex?: number } | null;
   localDate: string | null;
   diaryId: number | null;
   createdAt: Date;
@@ -178,7 +177,6 @@ function makeRow(overrides: Partial<FakeRow> = {}): FakeRow {
     transcript: 'курица с рисом',
     components: sampleComponents(),
     status: 'draft',
-    awaitingInput: null,
     localDate: '2026-08-15',
     diaryId: null,
     createdAt: new Date('2026-08-15T00:00:00Z'),
@@ -316,29 +314,23 @@ describe('adjustGrams', () => {
 });
 
 describe('applyTypedGrams', () => {
-  it('writes parsed grams and clears the awaiting-input flag on success', async () => {
-    const { db, rows } = makeFakeDb([
-      makeRow({ awaitingInput: { kind: 'typed_grams', componentIndex: 0 } }),
-    ]);
+  it('writes parsed grams on success', async () => {
+    const { db, rows } = makeFakeDb([makeRow()]);
 
     const result = await applyTypedGrams(asDb(db), 1, 10, 0, '250 г', NOW);
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.components[0]?.grams).toBe(250);
-    expect(rows.get(1)?.awaitingInput).toBeNull();
   });
 
-  it('leaves grams unchanged and does not clear awaiting-input on unparseable text', async () => {
-    const { db, rows } = makeFakeDb([
-      makeRow({ awaitingInput: { kind: 'typed_grams', componentIndex: 0 } }),
-    ]);
+  it('leaves grams unchanged and writes nothing on unparseable text', async () => {
+    const { db, rows } = makeFakeDb([makeRow()]);
     const before = rows.get(1)?.components[0]?.grams;
 
     const result = await applyTypedGrams(asDb(db), 1, 10, 0, 'not a number', NOW);
 
     expect(result).toEqual({ ok: false, reason: 'invalid_grams' });
     expect(rows.get(1)?.components[0]?.grams).toBe(before);
-    expect(rows.get(1)?.awaitingInput).toEqual({ kind: 'typed_grams', componentIndex: 0 });
   });
 });
 

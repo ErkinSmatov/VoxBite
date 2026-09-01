@@ -29,14 +29,14 @@
  *
  * REMOVED (04.1-11): this handler used to run a step 0.5 "D-04 awaiting-input
  * gate" ahead of claimUpdate, which routed a typed reply into a chat-native
- * correction instead of a new meal analysis when a draft had
- * `awaiting_input` set. That gate is the mechanism that produced a live,
- * twice-recurring production defect — a typed correction on a reopened saved
- * entry leaking into this paid pipeline and creating a duplicate diary row
- * (see `04-UAT.md` rounds 3-4). It has been deleted, not patched a third
- * time: correction now happens exclusively in the Telegram Mini App, a
- * stateful client that cannot confuse a button tap with a new meal message.
- * Do not reintroduce a text-routing gate here.
+ * correction instead of a new meal analysis when a draft had a pending
+ * correction input flag set. That gate is the mechanism that produced a
+ * live, twice-recurring production defect — a typed correction on a
+ * reopened saved entry leaking into this paid pipeline and creating a
+ * duplicate diary row (see `04-UAT.md` rounds 3-4). It has been deleted, not
+ * patched a third time: correction now happens exclusively in the Telegram
+ * Mini App, a stateful client that cannot confuse a button tap with a new
+ * meal message. Do not reintroduce a text-routing gate here.
  *
  * `createUnsupportedHandler` (D-06) is the odd one out: it claims nothing,
  * downloads nothing, and never touches the pipeline — the whole point is

@@ -18,15 +18,6 @@
  */
 
 import type { FdcCandidate } from '../domain/fdc-matching/index.js';
-import type { DraftAwaitingInput } from '../db/schema/diary-drafts.js';
-
-/**
- * Re-exported from the schema so `corrections.ts`/`confirm-meal.ts`/the
- * Telegram handlers import every application-layer shape from here, the same
- * way they import `DraftComponent` and `MealDraft` — never reaching into
- * `src/db/schema/` directly for a type.
- */
-export type { DraftAwaitingInput };
 
 /**
  * Below this similarity a component's best candidate is FLAGGED, never
@@ -201,7 +192,6 @@ export interface PersistedDraft {
   /** The `components` jsonb column, cast to `DraftComponent[]`. */
   components: DraftComponent[];
   status: 'draft' | 'confirmed' | 'abandoned';
-  awaitingInput: DraftAwaitingInput | null;
   /**
    * `null` means this row is a pre-Phase-4 leftover (see
    * `src/db/schema/diary-drafts.ts`'s `localDate` comment) — confirmation

@@ -45,9 +45,9 @@
  * helper logs at all, it logs only the draft id and the operation name (the
  * `voice-pipeline.ts` logging invariant).
  */
-import { and, desc, eq, isNotNull, or } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { diaryDrafts, type DraftAwaitingInput, type NewDiaryDraft } from '../db/schema/diary-drafts.js';
+import { diaryDrafts, type NewDiaryDraft } from '../db/schema/diary-drafts.js';
 import type { DraftComponent, PersistedDraft } from './types.js';
 
 /** Inserts one diary_drafts row and returns its generated id. */
@@ -70,7 +70,6 @@ const draftColumns = {
   transcript: diaryDrafts.transcript,
   components: diaryDrafts.components,
   status: diaryDrafts.status,
-  awaitingInput: diaryDrafts.awaitingInput,
   localDate: diaryDrafts.localDate,
   diaryId: diaryDrafts.diaryId,
   createdAt: diaryDrafts.createdAt,
@@ -105,42 +104,6 @@ export async function readDraft(db: Db, draftId: number, userId: number): Promis
 }
 
 /**
- * The most recent `status = 'draft'` OR `status = 'confirmed'` row for this
- * user that is currently waiting on a free-text reply
- * (`awaiting_input IS NOT NULL`). This is what plan 10's text gate calls to
- * decide whether an incoming plain-text message is correction input or a new
- * (paid) meal message (D-04). Widened in gap-closure plan 04-13 (CR-01,
- * 04-REVIEW.md) to also match `'confirmed'` rows: reopening an already-saved
- * diary entry via `✎ Поправить` (`case 'edit'`) leaves `status` at
- * `'confirmed'` (see this plan's `<objective>` for why the fix widens this
- * filter instead of flipping `status` back to `'draft'`) -- a typed reply
- * after that reopen must still be recognised as a correction, not fall
- * through to the paid decomposition pipeline as a new meal (CORRECT-08). An
- * `'abandoned'` row is deliberately excluded even if a stale `awaiting_input`
- * is still set on it.
- */
-export async function findAwaitingDraft(db: Db, userId: number): Promise<PersistedDraft | null> {
-  const rows = await db
-    .select(draftColumns)
-    .from(diaryDrafts)
-    .where(
-      and(
-        eq(diaryDrafts.userId, userId),
-        or(eq(diaryDrafts.status, 'draft'), eq(diaryDrafts.status, 'confirmed')),
-        isNotNull(diaryDrafts.awaitingInput),
-      ),
-    )
-    .orderBy(desc(diaryDrafts.updatedAt))
-    .limit(1);
-
-  const row = rows[0];
-  if (!row) {
-    return null;
-  }
-  return toPersistedDraft(row);
-}
-
-/**
  * Scoped UPDATE of `components` (+ `updatedAt`). Also requires the row to be
  * `status = 'draft'` OR `status = 'confirmed'` — editing a saved entry
  * (D-05/CORRECT-08) mutates a confirmed draft in place, but an abandoned one
@@ -163,33 +126,6 @@ export async function updateDraftComponents(
         or(eq(diaryDrafts.status, 'draft'), eq(diaryDrafts.status, 'confirmed')),
       ),
     )
-    .returning({ id: diaryDrafts.id });
-
-  return rows.length > 0;
-}
-
-/** Scoped UPDATE of `awaiting_input` (+ `updatedAt`) to the given value. */
-export async function setAwaitingInput(
-  db: Db,
-  draftId: number,
-  userId: number,
-  awaiting: DraftAwaitingInput,
-): Promise<boolean> {
-  const rows = await db
-    .update(diaryDrafts)
-    .set({ awaitingInput: awaiting, updatedAt: new Date() })
-    .where(and(eq(diaryDrafts.id, draftId), eq(diaryDrafts.userId, userId)))
-    .returning({ id: diaryDrafts.id });
-
-  return rows.length > 0;
-}
-
-/** Scoped UPDATE that nulls out `awaiting_input` (+ `updatedAt`). */
-export async function clearAwaitingInput(db: Db, draftId: number, userId: number): Promise<boolean> {
-  const rows = await db
-    .update(diaryDrafts)
-    .set({ awaitingInput: null, updatedAt: new Date() })
-    .where(and(eq(diaryDrafts.id, draftId), eq(diaryDrafts.userId, userId)))
     .returning({ id: diaryDrafts.id });
 
   return rows.length > 0;
