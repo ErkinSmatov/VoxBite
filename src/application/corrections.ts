@@ -35,7 +35,7 @@
 import type { Db } from '../db/client.js';
 import { matchIngredient, type FdcRepository } from '../domain/fdc-matching/index.js';
 import type { Embedder } from '../adapters/embeddings/types.js';
-import { clearAwaitingInput, readDraft, updateDraftComponents } from './draft-store.js';
+import { readDraft, updateDraftComponents } from './draft-store.js';
 import { isDraftExpired, isWeakMatch, type DraftComponent } from './types.js';
 
 /** CORRECT-04: the fixed step size for the `±` gram buttons. */
@@ -211,11 +211,10 @@ export async function adjustGrams(
 }
 
 /**
- * CORRECT-04: the typed-grams counterpart to `adjustGrams`, reached from
- * `DraftAwaitingInput.kind === 'typed_grams'`. `parseGrams` runs FIRST — on
- * `null` this returns WITHOUT writing and WITHOUT clearing the
- * awaiting-input flag, so the user's next message is still routed here for
- * another attempt.
+ * CORRECT-04: the typed-grams counterpart to `adjustGrams`, called from the
+ * Mini App's grams-input form. `parseGrams` runs FIRST — on `null` this
+ * returns `invalid_grams` without writing anything, and the Mini App keeps
+ * the input open for the user to try again.
  */
 export async function applyTypedGrams(
   db: Db,
@@ -247,7 +246,6 @@ export async function applyTypedGrams(
     return { ok: false, reason: 'write_failed' };
   }
 
-  await clearAwaitingInput(db, draftId, userId);
   return { ok: true, components: updated };
 }
 
@@ -376,6 +374,5 @@ export async function addComponent(
     return { ok: false, reason: 'write_failed' };
   }
 
-  await clearAwaitingInput(db, draftId, userId);
   return { ok: true, components: updated };
 }

@@ -8,25 +8,11 @@
  *
  * GATE ORDER (this order is the phase's entire spend-control story — do not
  * reorder without re-reading 03-07-PLAN.md's `<threat_model>`):
- *   0.5. [text only] The D-04 awaiting-input gate. Resolves the user
- *      (findOnboardedUser, hoisted from gate 2 below so it is queried only
- *      ONCE) and, if there is one, hands the ctx + user to the injected
- *      `interceptCorrectionText`. If it reports the message was consumed —
- *      the user had a draft awaiting a typed grams value or an added
- *      component — this handler returns immediately: no claimUpdate, no ack,
- *      no processMeal. Without this gate, tapping "➕ Добавить" and typing
- *      "сметана" would start a brand-new PAID meal analysis of the word
- *      "сметана" (04-RESEARCH.md Pitfall 2) — the single most expensive and
- *      most confusing failure available in Phase 4. This gate runs BEFORE
- *      step 1, deliberately: a typed correction value must never reach the
- *      idempotency claim or any paid call.
  *   1. claimUpdate — the FIRST effectful statement. `false` => return
  *      immediately, no reply, no cost (D-10). A Telegram redelivery can never
  *      buy a second transcription.
  *   2. findOnboardedUser — a draft's foreign key would fail later anyway;
  *      checked here so the user gets an actionable Russian reply instead.
- *      (For the text handler, this reuses the `user` gate 0.5 already
- *      resolved — it is not queried a second time.)
  *   3. isDailyCapReached — the runaway guard (D-15).
  *   4. [voice only] downloadVoice — D-14's duration cap already ran inside
  *      this call, before Telegram's file API was even touched.
@@ -40,6 +26,17 @@
  *      outlives this handler (03-RESEARCH.md Pitfall 6). It logs only the
  *      update id and the error kind — never the ctx, never the transcript
  *      (health data, per `src/bot/error-handler.ts`'s invariant).
+ *
+ * REMOVED (04.1-11): this handler used to run a step 0.5 "D-04 awaiting-input
+ * gate" ahead of claimUpdate, which routed a typed reply into a chat-native
+ * correction instead of a new meal analysis when a draft had a pending
+ * correction input flag set. That gate is the mechanism that produced a
+ * live, twice-recurring production defect — a typed correction on a
+ * reopened saved entry leaking into this paid pipeline and creating a
+ * duplicate diary row (see `04-UAT.md` rounds 3-4). It has been deleted, not
+ * patched a third time: correction now happens exclusively in the Telegram
+ * Mini App, a stateful client that cannot confuse a button tap with a new
+ * meal message. Do not reintroduce a text-routing gate here.
  *
  * `createUnsupportedHandler` (D-06) is the odd one out: it claims nothing,
  * downloads nothing, and never touches the pipeline — the whole point is
@@ -78,17 +75,6 @@ export interface MealHandlerDeps {
   isDailyCapReached?: typeof isDailyCapReachedReal;
   downloadVoice?: typeof downloadVoiceReal;
   processMeal?: typeof processMealReal;
-  /**
-   * The D-04 awaiting-input gate (text handler only). `undefined` in tests
-   * that do not care about correction routing — `meal.ts` deliberately does
-   * NOT default this to a real implementation and does not import the
-   * application-layer FDC-matching module itself, so this module never
-   * drags in the embedder/matching path (src/bot/correction-wiring.ts +
-   * src/bot/bot.ts wire the real one in at startup). Returns `true` when the
-   * message was consumed as correction input (handler must return
-   * immediately), `false` when there was nothing awaiting.
-   */
-  interceptCorrectionText?: (ctx: BotContext, user: { id: number; timezone: string }) => Promise<boolean>;
 }
 
 function resolveIds(ctx: BotContext): { telegramId: number; chatId: number } | null {
@@ -190,7 +176,6 @@ export function createTextHandler(d: MealHandlerDeps) {
   const findOnboardedUser = d.findOnboardedUser ?? findOnboardedUserReal;
   const isDailyCapReached = d.isDailyCapReached ?? isDailyCapReachedReal;
   const processMeal = d.processMeal ?? processMealReal;
-  const interceptCorrectionText = d.interceptCorrectionText;
 
   return async (ctx: BotContext): Promise<void> => {
     const text = ctx.message?.text;
@@ -205,16 +190,10 @@ export function createTextHandler(d: MealHandlerDeps) {
     const { telegramId, chatId } = ids;
     const updateId = ctx.update.update_id;
 
-    // 0.5. D-04 awaiting-input gate — see the module header. Hoists the
-    // user lookup gate 2 used to do a second time; gate 2 below reuses this
-    // `user` instead of calling findOnboardedUser again.
+    // Hoisted ahead of claimUpdate (a leftover of the now-removed D-04 gate,
+    // see the module header): the onboarding check at step 2 reuses this
+    // `user` rather than querying findOnboardedUser a second time.
     const user = await findOnboardedUser(d.db, telegramId);
-    if (user && interceptCorrectionText) {
-      const consumed = await interceptCorrectionText(ctx, user);
-      if (consumed) {
-        return;
-      }
-    }
 
     // 1. Idempotency claim.
     const claimed = await claimUpdate({ db: d.db, updateId, telegramId, chatId, kind: 'text' });
@@ -222,8 +201,7 @@ export function createTextHandler(d: MealHandlerDeps) {
       return;
     }
 
-    // 2. Onboarding check (user already resolved at gate 0.5 above — do not
-    // query findOnboardedUser a second time).
+    // 2. Onboarding check (user already resolved above).
     if (!user) {
       await ctx.reply(pipelineCopy.notOnboarded);
       await markUpdateStatus(d.db, updateId, 'done');

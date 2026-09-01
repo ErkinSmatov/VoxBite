@@ -34,7 +34,6 @@ function makeDraft(overrides: Partial<PersistedDraft> = {}): PersistedDraft {
       },
     ],
     status: 'draft',
-    awaitingInput: null,
     localDate: '2026-08-31',
     diaryId: null,
     createdAt: new Date('2026-08-31T10:00:00Z'),

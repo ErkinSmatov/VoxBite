@@ -28,7 +28,6 @@ function makeDraft(overrides: Partial<PersistedDraft> = {}): PersistedDraft {
     transcript: 'курица 150г',
     components: [makeComponent()],
     status: 'draft',
-    awaitingInput: null,
     localDate: '2026-08-31',
     diaryId: null,
     createdAt: FIXED_NOW,

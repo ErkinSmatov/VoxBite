@@ -45,7 +45,6 @@ type DraftRow = {
   transcript: string;
   components: DraftComponent[];
   status: 'draft' | 'confirmed' | 'abandoned';
-  awaitingInput: null;
   localDate: string | null;
   diaryId: number | null;
   createdAt: Date;
@@ -278,7 +277,6 @@ function makeDraftRow(overrides: Partial<DraftRow> = {}): DraftRow {
     transcript: 'курица с рисом и брокколи',
     components: threeMatchedComponents(),
     status: 'draft',
-    awaitingInput: null,
     localDate: '2026-08-15',
     diaryId: null,
     createdAt: new Date('2026-08-15T10:00:00Z'),
@@ -323,7 +321,6 @@ describe('buildDiaryDescription', () => {
       transcript: '  курица с рисом  ',
       components: threeMatchedComponents(),
       status: 'draft',
-      awaitingInput: null,
       localDate: '2026-08-15',
       diaryId: null,
       createdAt: new Date(),

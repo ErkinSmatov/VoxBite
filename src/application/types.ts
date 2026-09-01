@@ -18,15 +18,6 @@
  */
 
 import type { FdcCandidate } from '../domain/fdc-matching/index.js';
-import type { DraftAwaitingInput } from '../db/schema/diary-drafts.js';
-
-/**
- * Re-exported from the schema so `corrections.ts`/`confirm-meal.ts`/the
- * Telegram handlers import every application-layer shape from here, the same
- * way they import `DraftComponent` and `MealDraft` — never reaching into
- * `src/db/schema/` directly for a type.
- */
-export type { DraftAwaitingInput };
 
 /**
  * Below this similarity a component's best candidate is FLAGGED, never
@@ -79,10 +70,9 @@ export interface DraftComponent extends DecomposedComponent {
 
 /**
  * Computes `DraftComponent.weakMatch`. Exported so both the orchestration
- * layer (when building a `MealDraft`) and
- * `src/bot/formatting/correction-card.ts` (when rendering one — this is the
- * Phase 4 renderer; the Phase 3 read-only card it superseded was retired in
- * 04-12) derive the exact same flag from the exact same rule.
+ * layer (when building a `MealDraft`) and the Mini App API (when rendering
+ * one, via the response builders under `api/_lib/`) derive the exact same
+ * flag from the exact same rule.
  */
 export function isWeakMatch(candidates: FdcCandidate[]): boolean {
   const top = candidates[0];
@@ -202,7 +192,6 @@ export interface PersistedDraft {
   /** The `components` jsonb column, cast to `DraftComponent[]`. */
   components: DraftComponent[];
   status: 'draft' | 'confirmed' | 'abandoned';
-  awaitingInput: DraftAwaitingInput | null;
   /**
    * `null` means this row is a pre-Phase-4 leftover (see
    * `src/db/schema/diary-drafts.ts`'s `localDate` comment) — confirmation

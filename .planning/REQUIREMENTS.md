@@ -60,11 +60,11 @@ Requirements for initial closed-beta release (владелец + друзья, �
 - [x] **CORRECT-01**: Бот показывает пользователю карточку разбора блюда:
       каждый компонент, граммовку, сопоставленную FDC-запись
 - [x] **CORRECT-02**: Пользователь может подтвердить разбор как есть
-- [ ] **CORRECT-03**: Пользователь может сменить сопоставленный FDC-вариант
+- [x] **CORRECT-03**: Пользователь может сменить сопоставленный FDC-вариант
       компонента на одного из 3 кандидатов
-- [ ] **CORRECT-04**: Пользователь может скорректировать граммовку
+- [x] **CORRECT-04**: Пользователь может скорректировать граммовку
       компонента (кнопки ±10 г или ввод числа)
-- [ ] **CORRECT-05**: Пользователь может убрать компонент из разбора
+- [x] **CORRECT-05**: Пользователь может убрать компонент из разбора
 - [x] **CORRECT-06**: Пользователь может добавить недостающий компонент
       текстом — для него запускается тот же поиск по FDC
 - [x] **CORRECT-07**: Состояние черновика коррекции хранится в базе данных
@@ -158,9 +158,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MATCH-02 | Phase 1 | Complete |
 | CORRECT-01 | Phase 4 | Complete |
 | CORRECT-02 | Phase 4 | Complete |
-| CORRECT-03 | Phase 4 | Pending |
-| CORRECT-04 | Phase 4 | Pending |
-| CORRECT-05 | Phase 4 | Pending |
+| CORRECT-03 | Phase 4 | Complete |
+| CORRECT-04 | Phase 4 | Complete |
+| CORRECT-05 | Phase 4 | Complete |
 | CORRECT-06 | Phase 4 | Complete |
 | CORRECT-07 | Phase 4 | Complete |
 | CORRECT-08 | Phase 4 | Complete |

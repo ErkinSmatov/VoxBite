@@ -26,7 +26,7 @@ describe('createMessageEditor', () => {
   it('with a replyMarkup value: api.editMessageText is called with FOUR arguments, and the 4th deep-equals { reply_markup: <the exact value passed in> }', async () => {
     const api = fakeApi();
     const editor = createMessageEditor(api);
-    const markup = { inline_keyboard: [[{ text: '1', callback_data: 'crc:1:sel:0' }]] };
+    const markup = { inline_keyboard: [[{ text: '1', callback_data: 'sample:1:sel:0' }]] };
 
     await editor.editMessage(555, 42, 'hello', markup);
 
