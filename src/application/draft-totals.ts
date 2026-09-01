@@ -1,22 +1,20 @@
 /**
- * draft-totals — the preview-total item-building rule, extracted out of
- * `src/bot/formatting/correction-card.ts`'s `formatTotalsBlock` so the Mini
- * App API (this phase) does not duplicate it.
+ * draft-totals — the preview-total item-building rule. Originally extracted
+ * out of Phase 4's chat-native correction card renderer so the Mini App API
+ * would not duplicate it; that renderer was deleted in plan 11 of this phase
+ * (04.1-11), so this is now the ONLY copy of the rule, not a temporary one.
  *
  * This is the ONLY place outside `confirm-meal.ts` that builds
  * `TotalInputItem[]` from a `DraftComponent[]` — it exists so the Mini App
  * API never writes a second summation (CALC-01/D-03).
- * `correction-card.ts`'s duplicate copy of this exact rule is deleted in
- * plan 11 of this phase; until then a temporary duplicate exists between
- * this plan and that one — do not let a third copy appear anywhere else.
  *
  * `src/application/` rules apply: no grammY import, no DB driver import, no
  * `@vercel/node` type import — this file may only import `src/domain/**`
  * and `src/application/**`.
  *
  * Rounding: `calculateTotal` returns raw, unrounded floats and this file
- * never rounds anything — rounding happens at render time only, in the
- * Mini App frontend, exactly as `correction-card.ts` did.
+ * never rounds anything — rounding happens at render time only, in the Mini
+ * App frontend (`mini-app/src/components/SummaryTotals.tsx`).
  */
 import { calculateTotal } from '../domain/nutrition/index.js';
 import type { NutrientTotal, TotalInputItem } from '../domain/nutrition/index.js';

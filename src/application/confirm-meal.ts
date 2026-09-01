@@ -50,11 +50,9 @@ const MAX_DESCRIPTION_LENGTH = 500;
 
 /**
  * Neutral fallback label for the rare case where both the draft's
- * transcript AND every component name are empty/whitespace. Kept local
- * (not added to `correctionCopy` in `src/bot/formatting/`) to respect this
- * plan's declared file scope (`04-08-PLAN.md`) — flagged here as a small
- * gap for plan 09/10 to fold into the copy module if a second caller ever
- * needs the same string.
+ * transcript AND every component name are empty/whitespace. Kept local to
+ * this module — the Mini App's own frontend copy owns the equivalent
+ * user-facing string on its side, not `src/application/`.
  */
 const NEUTRAL_DESCRIPTION_FALLBACK = 'Приём пищи';
 
@@ -63,9 +61,8 @@ const NEUTRAL_DESCRIPTION_FALLBACK = 'Приём пищи';
  * null`), or `null` when every component has a match. Deliberately
  * NARROWER than D-21 (weak-match flagging): a WEAK match confirms freely
  * (it is flagged, and the picker is one tap away); only a MISSING match
- * blocks. Exported so plan 09's handler can render
- * `correctionCopy.blockedConfirm(name)` from the same rule this module
- * enforces.
+ * blocks. Exported so the Mini App API's confirm endpoint can render its own
+ * "blocked confirm" copy from the same rule this module enforces.
  */
 export function findBlockingComponent(components: DraftComponent[]): DraftComponent | null {
   return components.find((component) => component.chosenFdcId === null) ?? null;

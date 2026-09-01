@@ -1,10 +1,10 @@
 /**
  * entry-point-reachability — the test whose absence let a completely
  * unreachable feature pass 687 green tests (04-UAT.md). 04-10 added
- * registration-ORDER tripwires (is the `crc:` handler wired?), and every one
- * of those passed while no message in the product could produce a `crc:`
- * callback at all: `voice-pipeline.ts` was still rendering the Phase 3
- * read-only card with no keyboard attached.
+ * registration-ORDER tripwires (is the chat-native correction callback
+ * handler wired?), and every one of those passed while no message in the
+ * product could produce that callback at all: `voice-pipeline.ts` was still
+ * rendering the Phase 3 read-only card with no keyboard attached.
  *
  * This is a REACHABILITY tripwire, not a registration-order one: it asserts
  * the product's only entry point (`processMeal`, voice AND text) actually
@@ -12,12 +12,13 @@
  * button that opens the phase 04.1 Mini App. It must never be weakened into
  * a registration test.
  *
- * 04.1-02: this test used to assert a `crc:` callback keyboard (the Phase 4
- * chat-native correction card). That flow is retired (D-02/D-03) — the ack
- * message is never rewritten into a card again. This rewrite asserts the
- * NEW reachable surface instead: a `web_app` button carrying `draftId=<id>`,
- * and — per D-03 — that the message text itself carries none of the
- * component/candidate/nutrient data the old card used to show.
+ * 04.1-02: this test used to assert the Phase 4 chat-native correction
+ * card's inline-keyboard callback. That flow is retired (D-02/D-03, and its
+ * code fully deleted in 04.1-11) — the ack message is never rewritten into a
+ * card again. This rewrite asserts the NEW reachable surface instead: a
+ * `web_app` button carrying `draftId=<id>`, and — per D-03 — that the
+ * message text itself carries none of the component/candidate/nutrient data
+ * the old card used to show.
  *
  * The renderer under test is sourced from the composition root
  * (`buildMealHandlerDeps` in `src/bot/pipeline-wiring.ts`), NOT from a direct

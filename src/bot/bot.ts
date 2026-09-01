@@ -133,7 +133,7 @@ export function createBot(deps: BotDeps): Bot<BotContext> {
     miniAppBaseUrl: deps.miniAppBaseUrl,
   });
 
-  // 04.1-11: Phase 4's chat-native correction UI (the crc: callback
+  // 04.1-11: Phase 4's chat-native correction UI (the callback-query
   // dispatcher and the D-04 awaiting-input text gate) has been deleted, not
   // patched — see meal.ts's module header for why. Correction now happens
   // exclusively in the Telegram Mini App, which calls the same
