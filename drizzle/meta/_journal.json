@@ -57,6 +57,13 @@
       "when": 1786735007805,
       "tag": "0007_whole_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788293702315,
+      "tag": "0008_harsh_callisto",
+      "breakpoints": true
     }
   ]
 }

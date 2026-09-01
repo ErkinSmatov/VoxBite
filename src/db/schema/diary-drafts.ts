@@ -26,6 +26,22 @@
  * `drizzle/0006_voice_pipeline_rls.sql`) — Supabase publishes every `public`
  * table through its PostgREST API to anyone holding the project's public
  * anon key, and `diary_drafts` holds what people ate, which is health data.
+ *
+ * HISTORY: a `jsonb` column recording what free-text reply the bot was
+ * awaiting input for lived here from Phase 4 until Phase 04.1. It backed the
+ * chat-native correction UI's text-input gate (D-04): when the user tapped a
+ * button expecting a free-text reply next (`➕ Добавить` or
+ * `⌨ Ввести граммы`), the plain-text handler in `src/bot/handlers/meal.ts`
+ * used this column to route the next message into the correction flow
+ * instead of spending on a new (paid) voice/text meal analysis. That gate
+ * produced two live production defects (04-UAT.md rounds 3-4: a typed
+ * correction on a reopened saved entry leaking into the paid decomposition
+ * pipeline). Phase 04.1 deleted the whole chat-native correction UI in favor
+ * of a Telegram Mini App, which needs no such server-side "waiting for a
+ * reply" note — a web page knows what the user is doing without leaving
+ * itself state in the database. The column and every line of code that read
+ * or wrote it were removed together (`drizzle/0008_harsh_callisto.sql`); see
+ * 04.1-11-SUMMARY.md and 04.1-12-SUMMARY.md.
  */
 import {
   type AnyPgColumn,
@@ -43,20 +59,6 @@ import {
 import { sql } from 'drizzle-orm';
 import { users } from './users';
 import { diary } from './diary';
-
-/**
- * D-04: the shape of `diary_drafts.awaiting_input`. Set when the user has
- * tapped a button that expects a free-text reply next (`➕ Добавить` or
- * `⌨ Ввести граммы`), so the plain-text handler in `src/bot/handlers/meal.ts`
- * can route the next message into the correction flow instead of spending on
- * a new (paid) voice/text meal analysis. `componentIndex` is only meaningful
- * for `typed_grams` (which existing component the typed number applies to);
- * `add_component` has none because it always appends.
- */
-export interface DraftAwaitingInput {
-  kind: 'add_component' | 'typed_grams';
-  componentIndex?: number;
-}
 
 export const diaryDrafts = pgTable(
   'diary_drafts',
@@ -81,13 +83,6 @@ export const diaryDrafts = pgTable(
     // schema evolution of this shape without a migration here.
     components: jsonb('components').notNull(),
     status: text('status').notNull().default('draft').$type<'draft' | 'confirmed' | 'abandoned'>(),
-    // D-04: what free-text reply the bot is waiting for, and for which
-    // component. Lives in Postgres, not process memory — the same rule as
-    // everything else in `src/application/` (ARCHITECTURE.md Anti-Pattern 4)
-    // — so a mid-typing bot restart does not silently drop the user into the
-    // paid pipeline on their next message. Cleared (`null`) once the reply
-    // is consumed, cancelled, or the draft times out (D-11).
-    awaitingInput: jsonb('awaiting_input').$type<DraftAwaitingInput | null>(),
     // D-07: the calendar day this meal belongs to, in the user's own
     // timezone, frozen at the moment the original voice/text message
     // arrived — never recomputed later, including on confirm or edit.
