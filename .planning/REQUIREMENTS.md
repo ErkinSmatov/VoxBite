@@ -57,19 +57,19 @@ Requirements for initial closed-beta release (владелец + друзья, �
 
 ### Confirm & Correct
 
-- [ ] **CORRECT-01**: Бот показывает пользователю карточку разбора блюда:
+- [x] **CORRECT-01**: Бот показывает пользователю карточку разбора блюда:
       каждый компонент, граммовку, сопоставленную FDC-запись
-- [ ] **CORRECT-02**: Пользователь может подтвердить разбор как есть
+- [x] **CORRECT-02**: Пользователь может подтвердить разбор как есть
 - [ ] **CORRECT-03**: Пользователь может сменить сопоставленный FDC-вариант
       компонента на одного из 3 кандидатов
 - [ ] **CORRECT-04**: Пользователь может скорректировать граммовку
       компонента (кнопки ±10 г или ввод числа)
 - [ ] **CORRECT-05**: Пользователь может убрать компонент из разбора
-- [ ] **CORRECT-06**: Пользователь может добавить недостающий компонент
+- [x] **CORRECT-06**: Пользователь может добавить недостающий компонент
       текстом — для него запускается тот же поиск по FDC
 - [x] **CORRECT-07**: Состояние черновика коррекции хранится в базе данных
       (не в памяти процесса) и переживает перезапуск бота
-- [ ] **CORRECT-08**: Пользователь может отредактировать или удалить уже
+- [x] **CORRECT-08**: Пользователь может отредактировать или удалить уже
       сохранённую запись дневника той же механикой коррекции
 
 ### Calculation
@@ -83,7 +83,7 @@ Requirements for initial closed-beta release (владелец + друзья, �
 
 ### Diary
 
-- [ ] **DIARY-01**: Подтверждённая запись сохраняется в дневник
+- [x] **DIARY-01**: Подтверждённая запись сохраняется в дневник
       пользователя за текущий день (с учётом часового пояса пользователя)
 - [ ] **DIARY-02**: Пользователь может посмотреть дневник за день:
       список записей, итоги против целевых КБЖУ
@@ -156,17 +156,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DECOMP-03 | Phase 3 | Pending |
 | MATCH-01 | Phase 1 | Complete |
 | MATCH-02 | Phase 1 | Complete |
-| CORRECT-01 | Phase 4 | Pending |
-| CORRECT-02 | Phase 4 | Pending |
+| CORRECT-01 | Phase 4 | Complete |
+| CORRECT-02 | Phase 4 | Complete |
 | CORRECT-03 | Phase 4 | Pending |
 | CORRECT-04 | Phase 4 | Pending |
 | CORRECT-05 | Phase 4 | Pending |
-| CORRECT-06 | Phase 4 | Pending |
+| CORRECT-06 | Phase 4 | Complete |
 | CORRECT-07 | Phase 4 | Complete |
-| CORRECT-08 | Phase 4 | Pending |
+| CORRECT-08 | Phase 4 | Complete |
 | CALC-01 | Phase 4 | Complete |
 | CALC-02 | Phase 4 | Complete |
-| DIARY-01 | Phase 4 | Pending |
+| DIARY-01 | Phase 4 | Complete |
 | DIARY-02 | Phase 5 | Pending |
 | DIARY-03 | Phase 5 | Pending |
 

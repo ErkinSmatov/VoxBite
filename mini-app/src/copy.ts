@@ -51,6 +51,9 @@ export const copy = {
   headerLevel1: 'Проверь разбор:',
   previewPrefix: '≈',
 
+  /** Marker shown beside the ≈ preview before the entry is saved (plan 10, SummaryTotals). */
+  notSavedMarker: 'пока не сохранено',
+
   /**
    * CALC-02/TECH_SPEC §5.8 — shown instead of a number whenever a nutrient
    * value is genuinely absent from the matched FDC record. Never render "0"
@@ -95,6 +98,9 @@ export const copy = {
   },
 
   cancelled: 'Разбор отменён.',
+
+  /** Placeholder for AddComponent's inline text field (plan 10). */
+  askComponent: 'Что добавить? Напиши название компонента.',
 
   // ---- New strings (no chat equivalent existed — 04.1-UI-SPEC.md) -------
 
