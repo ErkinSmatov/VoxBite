@@ -133,7 +133,7 @@ button, per CONTEXT.md D-02) — the same correct/confirm/diary-write logic Phas
 from chat cards + inline keyboards + a fragile text-input gate to a proper touch UI.
 **Requirements**: CORRECT-01, CORRECT-02, CORRECT-03, CORRECT-04, CORRECT-05, CORRECT-06, CORRECT-07, CORRECT-08, CALC-01, CALC-02, DIARY-01 (same IDs as Phase 4 — re-discharged through a new UI, no new IDs created)
 **Depends on:** Phase 4
-**Plans:** 11/14 plans executed
+**Plans:** 12/14 plans executed
 
 Plans:
 **Wave 1**
@@ -158,7 +158,7 @@ Plans:
 - [x] 04.1-11-PLAN.md — Delete the chat correction UI and the awaiting_input call sites
 
 **Wave 6** *(blocked on Wave 5)*
-- [ ] 04.1-12-PLAN.md — [BLOCKING] drop the awaiting_input column via generate + owner-reviewed migrate
+- [x] 04.1-12-PLAN.md — [BLOCKING] drop the awaiting_input column via generate + owner-reviewed migrate
 
 **Wave 7** *(blocked on Wave 6)*
 - [ ] 04.1-13-PLAN.md — Deploy to Vercel, register the domain with BotFather, live auth smoke tests
@@ -187,5 +187,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Bot skeleton + onboarding | 0/TBD | Not started | - |
 | 3. Voice pipeline | 0/TBD | Not started | - |
 | 4. Confirm/correct + diary persistence | 13/13 | Complete   | 2026-08-24 |
-| 04.1. Telegram Mini App correction UI | 11/14 | In Progress|  |
+| 04.1. Telegram Mini App correction UI | 12/14 | In Progress|  |
 | 5. Diary views | 0/TBD | Not started | - |
