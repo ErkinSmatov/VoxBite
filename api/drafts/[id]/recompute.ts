@@ -20,11 +20,11 @@
  * or candidate description (health data).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { buildDraftResponse } from '../../_lib/draft-response';
-import { getDb, type Db } from '../../_lib/db';
-import { logApiError, parseDraftId, requireUser, sendError } from '../../_lib/http';
-import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal';
-import { readDraft as readDraftReal } from '../../../src/application/draft-store';
+import { buildDraftResponse } from '../../_lib/draft-response.js';
+import { getDb, type Db } from '../../_lib/db.js';
+import { logApiError, parseDraftId, requireUser, sendError } from '../../_lib/http.js';
+import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal.js';
+import { readDraft as readDraftReal } from '../../../src/application/draft-store.js';
 
 export interface RecomputeDeps {
   getDb: () => Db;

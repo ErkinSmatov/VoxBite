@@ -8,10 +8,10 @@
  * plan 03 task 1) and from nowhere else — no endpoint file may build its own
  * `TotalInputItem[]` or sum nutrients (CALC-01).
  */
-import { findBlockingComponent } from '../../src/application/confirm-meal';
-import { summarizeDraft } from '../../src/application/draft-totals';
-import type { DraftComponent, PersistedDraft } from '../../src/application/types';
-import type { NutrientTotal } from '../../src/domain/nutrition/index';
+import { findBlockingComponent } from '../../src/application/confirm-meal.js';
+import { summarizeDraft } from '../../src/application/draft-totals.js';
+import type { DraftComponent, PersistedDraft } from '../../src/application/types.js';
+import type { NutrientTotal } from '../../src/domain/nutrition/index.js';
 
 export interface DraftResponse {
   draftId: number;

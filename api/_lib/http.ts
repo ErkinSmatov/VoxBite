@@ -12,9 +12,9 @@
  * transcript text. This is health data.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from './db';
-import { resolveUser } from './resolve-user';
-import { validateAndParse } from './validate-init-data';
+import { getDb } from './db.js';
+import { resolveUser } from './resolve-user.js';
+import { validateAndParse } from './validate-init-data.js';
 
 const TMA_PREFIX = 'tma ';
 

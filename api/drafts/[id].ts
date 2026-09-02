@@ -15,11 +15,11 @@
  * importing this module in a test never opens a socket.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb, type Db } from '../_lib/db';
-import { logApiError, parseDraftId, requireUser, sendError } from '../_lib/http';
-import { buildDraftResponse } from '../_lib/draft-response';
-import { markDraftStatus, readDraft } from '../../src/application/draft-store';
-import { isDraftExpired } from '../../src/application/types';
+import { getDb, type Db } from '../_lib/db.js';
+import { logApiError, parseDraftId, requireUser, sendError } from '../_lib/http.js';
+import { buildDraftResponse } from '../_lib/draft-response.js';
+import { markDraftStatus, readDraft } from '../../src/application/draft-store.js';
+import { isDraftExpired } from '../../src/application/types.js';
 
 export interface GetDraftDeps {
   getDb: () => Db;

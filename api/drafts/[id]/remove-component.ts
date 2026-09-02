@@ -19,12 +19,12 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { getDb, type Db } from '../../_lib/db';
-import { requireUser, reasonToStatus, sendError, parseDraftId, logApiError } from '../../_lib/http';
-import { buildComponentsResponse } from '../../_lib/draft-response';
-import { readDraft as readDraftReal } from '../../../src/application/draft-store';
-import { removeComponent as removeComponentReal } from '../../../src/application/corrections';
-import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal';
+import { getDb, type Db } from '../../_lib/db.js';
+import { requireUser, reasonToStatus, sendError, parseDraftId, logApiError } from '../../_lib/http.js';
+import { buildComponentsResponse } from '../../_lib/draft-response.js';
+import { readDraft as readDraftReal } from '../../../src/application/draft-store.js';
+import { removeComponent as removeComponentReal } from '../../../src/application/corrections.js';
+import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal.js';
 
 const bodySchema = z.object({
   componentIndex: z.number().int().nonnegative(),

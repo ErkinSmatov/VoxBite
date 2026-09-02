@@ -22,9 +22,9 @@
  * or candidate description (health data).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb, type Db } from '../../_lib/db';
-import { logApiError, parseDraftId, requireUser, sendError } from '../../_lib/http';
-import { claimAbandon as claimAbandonReal } from '../../../src/application/draft-store';
+import { getDb, type Db } from '../../_lib/db.js';
+import { logApiError, parseDraftId, requireUser, sendError } from '../../_lib/http.js';
+import { claimAbandon as claimAbandonReal } from '../../../src/application/draft-store.js';
 
 export interface CancelDeps {
   getDb: () => Db;
