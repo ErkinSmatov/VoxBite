@@ -1,7 +1,7 @@
 // Mifflin-St Jeor BMR and activity-multiplied TDEE (TECH_SPEC.md §6.1-6.2).
 
-import { ACTIVITY_MULTIPLIERS } from './constants';
-import type { ActivityLevel, Sex } from './types';
+import { ACTIVITY_MULTIPLIERS } from './constants.js';
+import type { ActivityLevel, Sex } from './types.js';
 
 function assertPositiveFinite(field: string, value: number): void {
   if (!Number.isFinite(value) || value <= 0) {

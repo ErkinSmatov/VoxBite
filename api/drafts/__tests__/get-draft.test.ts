@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import { createGetDraftHandler } from '../[id]';
-import type { PersistedDraft } from '../../../src/application/types';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import { createGetDraftHandler } from '../[id].js';
+import type { PersistedDraft } from '../../../src/application/types.js';
 
 function makeDraft(overrides: Partial<PersistedDraft> = {}): PersistedDraft {
   return {

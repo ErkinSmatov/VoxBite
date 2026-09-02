@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { calculateNutritionTargets } from '../../domain/nutrition/index.js';
-import { assembleProfile } from './assemble-profile';
-import type { OnboardingAnswers } from './assemble-profile';
+import { assembleProfile } from './assemble-profile.js';
+import type { OnboardingAnswers } from './assemble-profile.js';
 
 const BASE_ANSWERS: OnboardingAnswers = {
   sex: 'male',

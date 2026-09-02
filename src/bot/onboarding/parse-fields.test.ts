@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { AGE_MAX, AGE_MIN, HEIGHT_MAX_CM, HEIGHT_MIN_CM, WEIGHT_MAX_KG, WEIGHT_MIN_KG } from './parse-fields';
-import { parseAge, parseHeight, parseWeight } from './parse-fields';
-import type { ParseResult } from './parse-fields';
+import { AGE_MAX, AGE_MIN, HEIGHT_MAX_CM, HEIGHT_MIN_CM, WEIGHT_MAX_KG, WEIGHT_MIN_KG } from './parse-fields.js';
+import { parseAge, parseHeight, parseWeight } from './parse-fields.js';
+import type { ParseResult } from './parse-fields.js';
 
 function expectOk<T>(result: ParseResult<T>, value: T): void {
   expect(result.ok).toBe(true);

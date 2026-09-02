@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import type { Db } from '../../_lib/db';
-import { createTypedGramsHandler } from '../[id]/typed-grams';
-import type { DraftComponent, PersistedDraft } from '../../../src/application/types';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import type { Db } from '../../_lib/db.js';
+import { createTypedGramsHandler } from '../[id]/typed-grams.js';
+import type { DraftComponent, PersistedDraft } from '../../../src/application/types.js';
 
 const FIXED_NOW = new Date('2026-08-31T12:00:00Z');
 

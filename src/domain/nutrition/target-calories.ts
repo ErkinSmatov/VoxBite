@@ -7,8 +7,8 @@ import {
   DAYS_PER_MONTH,
   KCAL_PER_KG_BODY_MASS,
   MAX_RATE_KG_PER_MONTH,
-} from './constants';
-import type { Goal, Sex } from './types';
+} from './constants.js';
+import type { Goal, Sex } from './types.js';
 
 export interface TargetCaloriesInput {
   sex: Sex;

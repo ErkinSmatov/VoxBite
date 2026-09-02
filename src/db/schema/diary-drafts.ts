@@ -57,8 +57,8 @@ import {
   unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from './users';
-import { diary } from './diary';
+import { users } from './users.js';
+import { diary } from './diary.js';
 
 export const diaryDrafts = pgTable(
   'diary_drafts',

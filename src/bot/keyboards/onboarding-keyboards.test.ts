@@ -5,15 +5,15 @@ import {
   SEX_OPTIONS,
   TIMEZONE_OPTIONS,
   decodeOption,
-} from '../onboarding/options';
-import { RATE_PRESETS_KG_PER_MONTH, decodeRate } from '../onboarding/rate-presets';
+} from '../onboarding/options.js';
+import { RATE_PRESETS_KG_PER_MONTH, decodeRate } from '../onboarding/rate-presets.js';
 import {
   CONFIRM_CALLBACK,
   RESTART_CALLBACK,
   buildConfirmKeyboard,
   buildOptionKeyboard,
   buildRateKeyboard,
-} from './onboarding-keyboards';
+} from './onboarding-keyboards.js';
 
 describe('buildOptionKeyboard', () => {
   const allLists = [

@@ -1,9 +1,9 @@
 // Single composed entry point Phase 2's onboarding conversation calls.
 
-import { calculateBmr, calculateTdee } from './bmr-tdee';
-import { calculateTargetCalories } from './target-calories';
-import { calculateTargetMacros } from './target-macros';
-import type { NutritionProfile, NutritionTargets } from './types';
+import { calculateBmr, calculateTdee } from './bmr-tdee.js';
+import { calculateTargetCalories } from './target-calories.js';
+import { calculateTargetMacros } from './target-macros.js';
+import type { NutritionProfile, NutritionTargets } from './types.js';
 
 export function calculateNutritionTargets(profile: NutritionProfile): NutritionTargets {
   const { sex, ageYears, heightCm, weightKg, activityLevel, goal, desiredRateKgPerMonth } = profile;

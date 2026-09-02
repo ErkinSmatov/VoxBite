@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { matchIngredient } from './match-ingredient';
-import { CANDIDATE_COUNT } from './types';
-import type { FdcCandidate, FdcRepository } from './types';
+import { matchIngredient } from './match-ingredient.js';
+import { CANDIDATE_COUNT } from './types.js';
+import type { FdcCandidate, FdcRepository } from './types.js';
 
 function makeEmbedding(length = 1536, fill = 0.1): number[] {
   return new Array(length).fill(fill);

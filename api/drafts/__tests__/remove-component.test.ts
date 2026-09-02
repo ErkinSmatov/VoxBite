@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
 
 vi.mock('../../_lib/http', async () => {
   const actual = await vi.importActual<typeof import('../../_lib/http')>('../../_lib/http');

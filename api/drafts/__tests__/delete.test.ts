@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import type { Db } from '../../_lib/db';
-import { createDeleteHandler } from '../[id]/delete';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import type { Db } from '../../_lib/db.js';
+import { createDeleteHandler } from '../[id]/delete.js';
 
 const FIXED_NOW = new Date('2026-08-31T12:00:00Z');
 
