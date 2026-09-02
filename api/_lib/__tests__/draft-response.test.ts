@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildComponentsResponse, buildDraftResponse } from '../draft-response';
-import type { DraftComponent, PersistedDraft } from '../../../src/application/types';
+import { buildComponentsResponse, buildDraftResponse } from '../draft-response.js';
+import type { DraftComponent, PersistedDraft } from '../../../src/application/types.js';
 
 const FIXED_NOW = new Date('2026-08-15T12:00:00Z');
 

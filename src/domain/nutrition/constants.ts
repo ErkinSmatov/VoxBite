@@ -6,7 +6,7 @@
 // from here rather than hard-coding a number, so a nutritionist (not a
 // programmer) can change a value in this file without touching any math.
 
-import type { ActivityLevel } from './types';
+import type { ActivityLevel } from './types.js';
 
 /**
  * Activity multipliers applied to BMR to get TDEE (TECH_SPEC.md §6.2).

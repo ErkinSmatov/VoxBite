@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIVITY_MULTIPLIERS } from '../../domain/nutrition/constants';
+import { ACTIVITY_MULTIPLIERS } from '../../domain/nutrition/constants.js';
 import {
   ACTIVITY_OPTIONS,
   DEFAULT_TIMEZONE,
@@ -7,7 +7,7 @@ import {
   SEX_OPTIONS,
   TIMEZONE_OPTIONS,
   decodeOption,
-} from './options';
+} from './options.js';
 
 describe('SEX_OPTIONS', () => {
   it('has exactly 2 entries with values male, female', () => {

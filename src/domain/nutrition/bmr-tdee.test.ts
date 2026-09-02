@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { calculateBmr, calculateTdee } from './bmr-tdee';
-import { ACTIVITY_MULTIPLIERS } from './constants';
-import type { ActivityLevel, Sex } from './types';
+import { calculateBmr, calculateTdee } from './bmr-tdee.js';
+import { ACTIVITY_MULTIPLIERS } from './constants.js';
+import type { ActivityLevel, Sex } from './types.js';
 
 describe('calculateBmr', () => {
   it.each([

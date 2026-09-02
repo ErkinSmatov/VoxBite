@@ -1,6 +1,6 @@
 import { sign } from '@tma.js/init-data-node';
 import { describe, expect, it } from 'vitest';
-import { MAX_AUTH_AGE_SECONDS, validateAndParse } from '../validate-init-data';
+import { MAX_AUTH_AGE_SECONDS, validateAndParse } from '../validate-init-data.js';
 
 const BOT_TOKEN = 'fake-test-bot-token:ABC123';
 

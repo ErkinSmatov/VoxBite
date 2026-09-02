@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateTargetMacros } from './target-macros';
+import { calculateTargetMacros } from './target-macros.js';
 
 describe('calculateTargetMacros', () => {
   it('80kg, 2500 kcal: protein 144, fat 72 (g/kg rule binds), carbs 319', () => {

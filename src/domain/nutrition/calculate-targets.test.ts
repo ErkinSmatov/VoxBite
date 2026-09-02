@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateNutritionTargets } from './calculate-targets';
-import type { Goal, NutritionProfile, Sex } from './types';
+import { calculateNutritionTargets } from './calculate-targets.js';
+import type { Goal, NutritionProfile, Sex } from './types.js';
 
 const MALE_BASE: Omit<NutritionProfile, 'goal'> = {
   sex: 'male',

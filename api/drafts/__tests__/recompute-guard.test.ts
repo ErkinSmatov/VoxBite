@@ -31,10 +31,10 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import type { Db } from '../../_lib/db';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import type { Db } from '../../_lib/db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { DraftComponent, PersistedDraft } from '../../../src/application/types';
+import type { DraftComponent, PersistedDraft } from '../../../src/application/types.js';
 
 vi.mock('../../_lib/http', async () => {
   const actual = await vi.importActual<typeof import('../../_lib/http')>('../../_lib/http');

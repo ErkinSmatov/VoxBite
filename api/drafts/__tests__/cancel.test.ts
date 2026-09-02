@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import type { Db } from '../../_lib/db';
-import { createCancelHandler } from '../[id]/cancel';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import type { Db } from '../../_lib/db.js';
+import { createCancelHandler } from '../[id]/cancel.js';
 
 function makeUser() {
   return { id: 7, timezone: 'Asia/Almaty' };

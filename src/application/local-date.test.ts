@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveLocalDate } from './local-date';
+import { deriveLocalDate } from './local-date.js';
 
 describe('deriveLocalDate', () => {
   it('a 23:50 Asia/Almaty instant (still UTC-morning) resolves to the local next day (D-07)', () => {

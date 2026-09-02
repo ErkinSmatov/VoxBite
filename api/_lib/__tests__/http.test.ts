@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from './fakes';
+import { makeReq, makeRes } from './fakes.js';
 
 vi.mock('../validate-init-data', () => ({
   validateAndParse: vi.fn(),

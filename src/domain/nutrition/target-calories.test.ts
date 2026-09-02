@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { calculateTargetCalories } from './target-calories';
-import { CALORIE_FLOOR_FEMALE, CALORIE_FLOOR_MALE, MAX_RATE_KCAL_PER_DAY } from './constants';
-import type { Goal, Sex } from './types';
+import { calculateTargetCalories } from './target-calories.js';
+import { CALORIE_FLOOR_FEMALE, CALORIE_FLOOR_MALE, MAX_RATE_KCAL_PER_DAY } from './constants.js';
+import type { Goal, Sex } from './types.js';
 
 const SEX_GOAL_COMBOS: Array<[Sex, Goal]> = [
   ['male', 'gain'],

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import { createConfirmHandler } from '../[id]/confirm';
-import type { PersistedDraft } from '../../../src/application/types';
-import type { ConfirmMealResult } from '../../../src/application/confirm-meal';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import { createConfirmHandler } from '../[id]/confirm.js';
+import type { PersistedDraft } from '../../../src/application/types.js';
+import type { ConfirmMealResult } from '../../../src/application/confirm-meal.js';
 
 function makeDraft(overrides: Partial<PersistedDraft> = {}): PersistedDraft {
   return {

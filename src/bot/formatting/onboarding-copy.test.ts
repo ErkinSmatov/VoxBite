@@ -6,7 +6,7 @@ import {
   isCancelKeyword,
   questionCopy,
   targetsWithDisclaimerMessage,
-} from './onboarding-copy';
+} from './onboarding-copy.js';
 
 const BASE_TARGETS: NutritionTargets = {
   bmr: 1700,

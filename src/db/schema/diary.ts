@@ -27,8 +27,8 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { users } from './users';
-import { diaryDrafts } from './diary-drafts';
+import { users } from './users.js';
+import { diaryDrafts } from './diary-drafts.js';
 
 export const diary = pgTable(
   'diary',

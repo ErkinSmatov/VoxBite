@@ -7,7 +7,7 @@ import {
   KCAL_PER_G_PROTEIN,
   MIN_FAT_KCAL_SHARE,
   PROTEIN_G_PER_KG,
-} from './constants';
+} from './constants.js';
 
 export interface TargetMacrosResult {
   proteinG: number;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_RATE_KG_PER_MONTH } from '../../domain/nutrition/constants';
-import { RATE_PRESETS_KG_PER_MONTH, decodeRate } from './rate-presets';
+import { MAX_RATE_KG_PER_MONTH } from '../../domain/nutrition/constants.js';
+import { RATE_PRESETS_KG_PER_MONTH, decodeRate } from './rate-presets.js';
 
 describe('RATE_PRESETS_KG_PER_MONTH', () => {
   it('deep-equals [0.25, 0.5, 0.75, 1]', () => {

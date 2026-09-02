@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { makeReq, makeRes } from '../../_lib/__tests__/fakes';
-import type { Db } from '../../_lib/db';
-import { createAdjustGramsHandler } from '../[id]/adjust-grams';
-import { GRAM_STEP, MAX_GRAMS } from '../../../src/application/corrections';
-import type { DraftComponent, PersistedDraft } from '../../../src/application/types';
+import { makeReq, makeRes } from '../../_lib/__tests__/fakes.js';
+import type { Db } from '../../_lib/db.js';
+import { createAdjustGramsHandler } from '../[id]/adjust-grams.js';
+import { GRAM_STEP, MAX_GRAMS } from '../../../src/application/corrections.js';
+import type { DraftComponent, PersistedDraft } from '../../../src/application/types.js';
 
 const FIXED_NOW = new Date('2026-08-31T12:00:00Z');
 
