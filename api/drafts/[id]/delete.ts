@@ -23,9 +23,9 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { getDb, type Db } from '../../_lib/db';
-import { logApiError, parseDraftId, requireUser, sendError } from '../../_lib/http';
-import { deleteSavedEntry as deleteSavedEntryReal } from '../../../src/application/confirm-meal';
+import { getDb, type Db } from '../../_lib/db.js';
+import { logApiError, parseDraftId, requireUser, sendError } from '../../_lib/http.js';
+import { deleteSavedEntry as deleteSavedEntryReal } from '../../../src/application/confirm-meal.js';
 
 const Body = z.object({
   confirmed: z.literal(true),

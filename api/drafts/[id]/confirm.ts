@@ -21,11 +21,11 @@
  * importing this module in a test never opens a socket.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb, type Db } from '../../_lib/db';
-import { logApiError, parseDraftId, reasonToStatus, requireUser, sendError } from '../../_lib/http';
-import { buildComponentsResponse, buildDraftResponse } from '../../_lib/draft-response';
-import { readDraft } from '../../../src/application/draft-store';
-import { confirmMeal } from '../../../src/application/confirm-meal';
+import { getDb, type Db } from '../../_lib/db.js';
+import { logApiError, parseDraftId, reasonToStatus, requireUser, sendError } from '../../_lib/http.js';
+import { buildComponentsResponse, buildDraftResponse } from '../../_lib/draft-response.js';
+import { readDraft } from '../../../src/application/draft-store.js';
+import { confirmMeal } from '../../../src/application/confirm-meal.js';
 
 export interface ConfirmDeps {
   getDb: () => Db;

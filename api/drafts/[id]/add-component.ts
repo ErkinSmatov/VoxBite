@@ -29,13 +29,13 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { getDb, type Db } from '../../_lib/db';
-import { requireUser, reasonToStatus, sendError, parseDraftId, logApiError } from '../../_lib/http';
-import { buildComponentsResponse } from '../../_lib/draft-response';
-import { getMatchingDeps as getMatchingDepsReal } from '../../_lib/matching';
-import { readDraft as readDraftReal } from '../../../src/application/draft-store';
-import { addComponent as addComponentReal, MAX_COMPONENT_TEXT_LENGTH } from '../../../src/application/corrections';
-import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal';
+import { getDb, type Db } from '../../_lib/db.js';
+import { requireUser, reasonToStatus, sendError, parseDraftId, logApiError } from '../../_lib/http.js';
+import { buildComponentsResponse } from '../../_lib/draft-response.js';
+import { getMatchingDeps as getMatchingDepsReal } from '../../_lib/matching.js';
+import { readDraft as readDraftReal } from '../../../src/application/draft-store.js';
+import { addComponent as addComponentReal, MAX_COMPONENT_TEXT_LENGTH } from '../../../src/application/corrections.js';
+import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal.js';
 
 const bodySchema = z.object({
   raw: z.string().min(1).max(MAX_COMPONENT_TEXT_LENGTH),

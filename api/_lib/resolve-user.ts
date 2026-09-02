@@ -9,8 +9,8 @@
  * `user` object at all (Telegram omits it in some contexts) — that is not
  * an identity, so this resolves to `null` without touching the database.
  */
-import { findOnboardedUser } from '../../src/application/limits';
-import type { Db } from '../../src/db/client';
+import { findOnboardedUser } from '../../src/application/limits.js';
+import type { Db } from '../../src/db/client.js';
 
 export async function resolveUser(
   db: Db,

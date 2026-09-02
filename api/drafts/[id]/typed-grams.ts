@@ -22,12 +22,12 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { buildDraftResponse } from '../../_lib/draft-response';
-import { getDb, type Db } from '../../_lib/db';
-import { logApiError, parseDraftId, reasonToStatus, requireUser, sendError } from '../../_lib/http';
-import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal';
-import { applyTypedGrams as applyTypedGramsReal } from '../../../src/application/corrections';
-import { readDraft as readDraftReal } from '../../../src/application/draft-store';
+import { buildDraftResponse } from '../../_lib/draft-response.js';
+import { getDb, type Db } from '../../_lib/db.js';
+import { logApiError, parseDraftId, reasonToStatus, requireUser, sendError } from '../../_lib/http.js';
+import { recomputeSavedEntry as recomputeSavedEntryReal } from '../../../src/application/confirm-meal.js';
+import { applyTypedGrams as applyTypedGramsReal } from '../../../src/application/corrections.js';
+import { readDraft as readDraftReal } from '../../../src/application/draft-store.js';
 
 /** A gram value is never longer than this — bounds a megabyte-payload attempt, nothing more. */
 const MAX_RAW_LENGTH = 32;

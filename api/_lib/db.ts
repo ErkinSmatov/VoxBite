@@ -17,7 +17,7 @@
  * pooler port (6543), not to hand-roll pooling here — reuse the existing
  * session-pooler `DATABASE_URL` for v1 (closed beta, low concurrency).
  */
-import { createDb, type Db } from '../../src/db/client';
+import { createDb, type Db } from '../../src/db/client.js';
 
 export function getDb(): Db {
   return createDb();

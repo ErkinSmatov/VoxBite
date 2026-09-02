@@ -24,11 +24,11 @@
  * environment variable — `add-component` is the one endpoint in this phase
  * that spends real money on the server side.
  */
-import { createOpenAIEmbedder } from '../../src/adapters/embeddings/openai-embed';
-import type { Embedder } from '../../src/adapters/embeddings/types';
-import { createDrizzleFdcRepository } from '../../src/adapters/fdc-repository';
-import type { FdcRepository } from '../../src/domain/fdc-matching/index';
-import type { Db } from './db';
+import { createOpenAIEmbedder } from '../../src/adapters/embeddings/openai-embed.js';
+import type { Embedder } from '../../src/adapters/embeddings/types.js';
+import { createDrizzleFdcRepository } from '../../src/adapters/fdc-repository.js';
+import type { FdcRepository } from '../../src/domain/fdc-matching/index.js';
+import type { Db } from './db.js';
 
 let cached: { embedder: Embedder; repo: FdcRepository } | null = null;
 
